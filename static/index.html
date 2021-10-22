@@ -12,8 +12,10 @@
 
         <span style="display: block;width: 100%;">项目：<select id="project" name="project" style="width: 80%;">
 
+            <!--
             <option value="DMS">DMS</option>
             <option value="IT">IT Support</option>
+            -->
         </select></span>
 
         <span style="display: block;width: 100%;">问题：<input id="question" name="question" style="width: 80%;"></span>
@@ -35,6 +37,16 @@
 <script>
     var HOST = window.location.host
     $(document).ready(function () {
+
+        $.get('http://' + HOST + '/v1/list/project', function (resp) {
+            var projects = resp.data
+            var options = []
+            for (var i = 0; i < projects.length; i++) {
+                options.push('<option value="' + projects[i].name + '">' + projects[i].name + '</option>')
+            }
+            $('#project').html(options.join("\n"))
+        })
+
         $('#btnAdd').click(function () {
             var data = {
                 'question': $('#question').val(),
@@ -55,7 +67,7 @@
             }
         })
         $('#btnQuery').click(function () {
-            $.get('http://' + HOST + '/v1/search?q=' + $('#q').val() + '？&p='+$('#project').val(), function (resp) {
+            $.get('http://' + HOST + '/v1/search?q=' + $('#q').val() + '？&p=' + $('#project').val(), function (resp) {
                 if (resp.code == 0) {
                     // debugger
                     var data = resp.data

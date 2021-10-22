@@ -9,6 +9,7 @@ import (
 	"github.com/kevwan/chatbot/bot"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -77,6 +78,7 @@ func bindRounter(router *gin.Engine) {
 				Msg:  fmt.Sprintf("project '%s' not found", project),
 			})
 		}
+		corpus.Question = strings.ToLower(corpus.Question)
 		err := chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
 			context.JSON(500, JsonResult{
@@ -147,6 +149,34 @@ func bindRounter(router *gin.Engine) {
 
 	})
 
+	v1.GET("list/project", func(context *gin.Context) {
+
+		projects := factory.ListProject()
+
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  "success",
+			Data: projects,
+		})
+
+	})
+
+	v1.POST("list/corpus", func(context *gin.Context) {
+		var corpus bot.Corpus
+		var start int
+		var limit int
+		start, _ = strconv.Atoi(context.PostForm("start"))
+		limit, _ = strconv.Atoi(context.PostForm("limit"))
+		context.Bind(&corpus)
+		projects := factory.ListCorpus(corpus, start, limit)
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  "success",
+			Data: projects,
+		})
+
+	})
+
 }
 
 func Cors() gin.HandlerFunc {
@@ -160,6 +190,8 @@ func Cors() gin.HandlerFunc {
 	},
 	)
 }
+
+//go:generate packr
 func main() {
 	factory = bot.NewChatBotFactory(bot.Config{
 		Driver:     *driver,
@@ -168,9 +200,10 @@ func main() {
 	factory.Init()
 	router := gin.Default()
 	router.Use(Cors())
-	box := packr.NewBox("./static")
+	box := packr.NewBox("../../static")
 	_ = box
-	router.StaticFS("/static", http.Dir("static"))
+	//router.StaticFS("/static", http.FileSystem(box))
+	router.StaticFS("/static", http.Dir("./static"))
 	bindRounter(router)
 	router.Run(*bind)
 }

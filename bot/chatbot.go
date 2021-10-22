@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/go-xorm/xorm"
@@ -35,7 +36,7 @@ type ChatBotFactory struct {
 	config   Config
 }
 
-var chatBotFactory *ChatBotFactory
+//var chatBotFactory *ChatBotFactory
 
 func NewChatBotFactory(config Config) *ChatBotFactory {
 
@@ -53,25 +54,21 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			panic(err)
 		}
-		err = engine.Sync2(&Corpus{})
+		err = engine.Sync2(&Corpus{}, &Project{})
 		if err != nil {
 			log.Error(err)
 		}
 
 	}
-	var projects []Corpus
-	err = engine.GroupBy("project").Find(&projects)
-
+	projects := make([]Project, 0)
+	err = engine.Find(&projects)
 	for _, project := range projects {
-		conf := Config{
-			Driver:     f.config.Driver,
-			DataSource: f.config.DataSource,
-			Project:    project.Project,
-		}
-		if project.Project == "" {
+		var conf Config
+		json.Unmarshal([]byte(project.Config), &conf)
+		if project.Name == "" {
 			continue
 		}
-		store, _ := storage.NewSeparatedMemoryStorage(project.Project)
+		store, _ := storage.NewSeparatedMemoryStorage(fmt.Sprintf("%s.gob", project.Name))
 		chatbot := &ChatBot{
 			LogicAdapter:   logic.NewClosestMatch(store, 5),
 			PrintMemStats:  false,
@@ -79,7 +76,7 @@ func (f *ChatBotFactory) Init() {
 			StorageAdapter: store,
 			Config:         conf,
 		}
-		f.AddChatBot(project.Project, chatbot)
+		f.AddChatBot(project.Name, chatbot)
 		chatbot.Init()
 	}
 
@@ -101,6 +98,26 @@ func (f *ChatBotFactory) AddChatBot(project string, chatBot *ChatBot) {
 
 }
 
+func (f *ChatBotFactory) ListProject() []Project {
+	var projects []Project
+	var err error
+	err = engine.Find(&projects)
+	if err != nil {
+		log.Error(err)
+	}
+	return projects
+}
+
+func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpus {
+	var corpuses []Corpus
+	var err error
+	err = engine.Limit(limit, start).Find(&corpuses, corpus)
+	if err != nil {
+		log.Error(err)
+	}
+	return corpuses
+}
+
 var engine *xorm.Engine
 
 func (chatbot *ChatBot) Init() {
@@ -112,7 +129,7 @@ func (chatbot *ChatBot) Init() {
 		panic(err)
 	}
 
-	err = engine.Sync2(&Corpus{})
+	err = engine.Sync2(&Corpus{}, &Project{})
 	if err != nil {
 		log.Error(err)
 	}
@@ -134,15 +151,25 @@ func (chatbot *ChatBot) Init() {
 }
 
 type Corpus struct {
-	Id          int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Class       string `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
-	Project     string `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
-	Answer      string `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
-	Principal   string `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
-	AcceptCount string `json:"accept_count" form:"accept_count" xorm:"int notnull  'accept_count' comment('解决次数')"`
-	RejectCount string `json:"reject_count" form:"reject_count" xorm:"int notnull  'reject_count' comment('解决次数')"`
-	Qtype       int    `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question    string    `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
+	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
+	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount string    `json:"accept_count" form:"accept_count" xorm:"int notnull  'accept_count' comment('解决次数')"`
+	RejectCount string    `json:"reject_count" form:"reject_count" xorm:"int notnull  'reject_count' comment('解决次数')"`
+	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
+	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+}
+
+type Project struct {
+	Id     int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Name   string `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
+	Config string `json:"config" form:"config"  xorm:"varchar(102400) notnull 'config' comment('配置')"`
+	//Config Config
 }
 
 type Config struct {
@@ -178,16 +205,6 @@ func (chatbot *ChatBot) Train(data interface{}) error {
 	}
 }
 
-/*
-CREATE TABLE "chatbot_tab" (
-"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-"class" TEXT,
-"project" TEXT,
-"question" TEXT,
-"answer" TEXT,
-"qtype" INTEGER
-);
-*/
 func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 	results := make(map[string][][]string)
 	var rows []Corpus
