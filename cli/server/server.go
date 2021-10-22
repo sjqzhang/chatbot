@@ -104,9 +104,10 @@ func bindRounter(router *gin.Engine) {
 		}
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
+			factory.Refresh()
 			context.JSON(200, JsonResult{
 				Code: 404,
-				Msg:  fmt.Sprintf("project '%s' not found", p),
+				Msg:  fmt.Sprintf("project '%s' not found,please retry 1 minute later.", p),
 			})
 		}
 		q := context.Query("q")
