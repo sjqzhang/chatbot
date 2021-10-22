@@ -9,6 +9,13 @@
 <div id="main">
 
     <div id="left" style="float: left;width: 49%">
+
+        <span style="display: block;width: 100%;">项目：<select id="project" name="project" style="width: 80%;">
+
+            <option value="DMS">DMS</option>
+            <option value="IT">IT Support</option>
+        </select></span>
+
         <span style="display: block;width: 100%;">问题：<input id="question" name="question" style="width: 80%;"></span>
         <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="30" cols="50"
                                                                       style="width: 80%;"></textarea></span>
@@ -32,7 +39,7 @@
             var data = {
                 'question': $('#question').val(),
                 'answer': $('#answer').val(),
-                'project': 'DMS', 'class': '测试', 'qtype': 1
+                'project': $('#project').val(), 'class': '测试', 'qtype': 1
             }
             $.post('http://' + HOST + '/v1/add', data, function (resp) {
                 if (resp.code == 0) {
@@ -48,7 +55,7 @@
             }
         })
         $('#btnQuery').click(function () {
-            $.get('http://' + HOST + '/v1/search?q=' + $('#q').val() + '？', function (resp) {
+            $.get('http://' + HOST + '/v1/search?q=' + $('#q').val() + '？&p='+$('#project').val(), function (resp) {
                 if (resp.code == 0) {
                     debugger
                     var data = resp.data

@@ -8,21 +8,20 @@ import (
 	"github.com/gobuffalo/packr"
 	"github.com/kevwan/chatbot/bot"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
-	"github.com/kevwan/chatbot/bot/adapters/storage"
-	"github.com/sjqzhang/gdi"
 	"net/http"
 	"strings"
 	"time"
 )
 
-var chatbot *bot.ChatBot
+var factory *bot.ChatBotFactory
 
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
 	tops    = flag.Int("t", 5, "the number of answers to return")
 	dir     = flag.String("d", "/Users/dev/repo/chatterbot-corpus/chatterbot_corpus/data/chinese", "the directory to look for corpora files")
 	//sqliteDB = flag.String("sqlite3", "/Users/junqiang.zhang/repo/go/chatbot/chatbot.db", "the file path of the corpus sqlite3")
-	sqliteDB      = flag.String("sqlite3", "", "the file path of the corpus sqlite3")
+	driver        = flag.String("driver", "sqlite3", "db driver")
+	datasource    = flag.String("datasource", "chatbot.db", "datasource connection")
 	bind          = flag.String("b", ":8080", "bind addr")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
@@ -45,30 +44,6 @@ type QA struct {
 func init() {
 
 	flag.Parse()
-	gdi.Register(func() (*bot.ChatBot, error) {
-		store, err := storage.NewSeparatedMemoryStorage(*storeFile)
-		if err != nil {
-			return nil, err
-		}
-
-		chatbot = &bot.ChatBot{
-			LogicAdapter:   logic.NewClosestMatch(store, *tops),
-			PrintMemStats:  *printMemStats,
-			Trainer:        bot.NewCorpusTrainer(store),
-			StorageAdapter: store,
-			Config: bot.Config{
-				Sqlite3:   *sqliteDB,
-				Project:   *project,
-				DirCorpus: *dir,
-			},
-		}
-		chatbot.Init()
-
-		if *verbose {
-			chatbot.LogicAdapter.SetVerbose()
-		}
-		return chatbot, nil
-	})
 
 }
 
@@ -90,9 +65,18 @@ func bindRounter(router *gin.Engine) {
 	}
 	v1 := router.Group("v1")
 	v1.POST("add", func(context *gin.Context) {
+
 		var corpus bot.Corpus
 
 		context.Bind(&corpus)
+		project := corpus.Project
+		var chatbot *bot.ChatBot
+		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
+			context.JSON(200, JsonResult{
+				Code: 404,
+				Msg:  fmt.Sprintf("project '%s' not found", project),
+			})
+		}
 		err := chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
 			context.JSON(500, JsonResult{
@@ -112,6 +96,17 @@ func bindRounter(router *gin.Engine) {
 	})
 
 	v1.GET("search", func(context *gin.Context) {
+		p := context.Query("p")
+		if p == "" {
+			p = *project
+		}
+		var chatbot *bot.ChatBot
+		if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
+			context.JSON(200, JsonResult{
+				Code: 404,
+				Msg:  fmt.Sprintf("project '%s' not found", p),
+			})
+		}
 		q := context.Query("q")
 		results := chatbot.GetResponse(q)
 		qas := buildAnswer(results)
@@ -128,6 +123,13 @@ func bindRounter(router *gin.Engine) {
 
 	v1.POST("remove", func(context *gin.Context) {
 		var corpus bot.Corpus
+		var chatbot *bot.ChatBot
+		if chatbot, _ = factory.GetChatBot(*project); chatbot == nil {
+			context.JSON(200, JsonResult{
+				Code: 404,
+				Msg:  fmt.Sprintf("project '%s' not found", *project),
+			})
+		}
 
 		context.Bind(&corpus)
 		err := chatbot.RemoveCorpusFromDB(&corpus)
@@ -159,12 +161,15 @@ func Cors() gin.HandlerFunc {
 	)
 }
 func main() {
-	gdi.Init()
-	chatbot.Init()
+	factory = bot.NewChatBotFactory(bot.Config{
+		Driver:     *driver,
+		DataSource: *datasource,
+	})
+	factory.Init()
 	router := gin.Default()
 	router.Use(Cors())
 	box := packr.NewBox("./static")
-	_=box
+	_ = box
 	router.StaticFS("/static", http.Dir("static"))
 	bindRounter(router)
 	router.Run(*bind)
