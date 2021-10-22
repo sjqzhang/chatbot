@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/go-xorm/xorm"
 	"github.com/kevwan/chatbot/bot/corpus"
+	"github.com/prometheus/common/log"
 	"path/filepath"
+	"sync"
 
 	//"github.com/jinzhu/gorm"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
@@ -27,22 +29,94 @@ type ChatBot struct {
 	Config         Config
 }
 
+type ChatBotFactory struct {
+	mu       sync.Mutex
+	chatBots map[string]*ChatBot
+	config   Config
+}
+
+var chatBotFactory *ChatBotFactory
+
+func NewChatBotFactory(config Config) *ChatBotFactory {
+
+	return &ChatBotFactory{
+		mu:       sync.Mutex{},
+		config:   config,
+		chatBots: make(map[string]*ChatBot),
+	}
+
+}
+func (f *ChatBotFactory) Init() {
+	var err error
+	if engine == nil {
+		engine, err = xorm.NewEngine(f.config.Driver, f.config.DataSource)
+		if err != nil {
+			panic(err)
+		}
+		err = engine.Sync2(&Corpus{})
+		if err != nil {
+			log.Error(err)
+		}
+
+	}
+	var projects []Corpus
+	err = engine.GroupBy("project").Find(&projects)
+
+	for _, project := range projects {
+		conf := Config{
+			Driver:     f.config.Driver,
+			DataSource: f.config.DataSource,
+			Project:    project.Project,
+		}
+		if project.Project == "" {
+			continue
+		}
+		store, _ := storage.NewSeparatedMemoryStorage(project.Project)
+		chatbot := &ChatBot{
+			LogicAdapter:   logic.NewClosestMatch(store, 5),
+			PrintMemStats:  false,
+			Trainer:        NewCorpusTrainer(store),
+			StorageAdapter: store,
+			Config:         conf,
+		}
+		f.AddChatBot(project.Project, chatbot)
+		chatbot.Init()
+	}
+
+}
+
+func (f *ChatBotFactory) GetChatBot(project string) (*ChatBot, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	chatBot, ok := f.chatBots[project]
+	return chatBot, ok
+}
+
+func (f *ChatBotFactory) AddChatBot(project string, chatBot *ChatBot) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.chatBots[project]; !ok {
+		f.chatBots[project] = chatBot
+	}
+
+}
+
 var engine *xorm.Engine
 
 func (chatbot *ChatBot) Init() {
 	var err error
-	if engine == nil && chatbot.Config.Sqlite3 != "" {
-		engine, err = xorm.NewEngine("sqlite3", chatbot.Config.Sqlite3)
-	} else {
-
-		engine, err = xorm.NewEngine("sqlite3", "chatbot.db")
+	if engine == nil {
+		engine, err = xorm.NewEngine(chatbot.Config.Driver, chatbot.Config.DataSource)
 	}
-
-	engine.Sync2(&Corpus{})
-
 	if err != nil {
 		panic(err)
 	}
+
+	err = engine.Sync2(&Corpus{})
+	if err != nil {
+		log.Error(err)
+	}
+
 	if chatbot.Config.DirCorpus != "" {
 		files := chatbot.FindCorporaFiles(chatbot.Config.DirCorpus)
 		if len(files) > 0 {
@@ -72,9 +146,11 @@ type Corpus struct {
 }
 
 type Config struct {
-	Sqlite3   string `json:"sqlite3"`
-	Project   string `json:"project"`
-	DirCorpus string `json:"dir_corpus"`
+	Driver     string `json:"driver"`
+	DataSource string `json:"data_source"`
+	Project    string `json:"project"`
+	DirCorpus  string `json:"dir_corpus"`
+	StoreFile  string `json:"store_file"`
 }
 
 func (chatbot *ChatBot) Train(data interface{}) error {
