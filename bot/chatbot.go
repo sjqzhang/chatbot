@@ -68,18 +68,24 @@ func (f *ChatBotFactory) Init() {
 		if project.Name == "" {
 			continue
 		}
-		store, _ := storage.NewSeparatedMemoryStorage(fmt.Sprintf("%s.gob", project.Name))
-		chatbot := &ChatBot{
-			LogicAdapter:   logic.NewClosestMatch(store, 5),
-			PrintMemStats:  false,
-			Trainer:        NewCorpusTrainer(store),
-			StorageAdapter: store,
-			Config:         conf,
+		if _, ok := f.GetChatBot(project.Name); !ok {
+			store, _ := storage.NewSeparatedMemoryStorage(fmt.Sprintf("%s.gob", project.Name))
+			chatbot := &ChatBot{
+				LogicAdapter:   logic.NewClosestMatch(store, 5),
+				PrintMemStats:  false,
+				Trainer:        NewCorpusTrainer(store),
+				StorageAdapter: store,
+				Config:         conf,
+			}
+			f.AddChatBot(project.Name, chatbot)
+			chatbot.Init()
 		}
-		f.AddChatBot(project.Name, chatbot)
-		chatbot.Init()
 	}
 
+}
+
+func (f *ChatBotFactory) Refresh() {
+	f.Init()
 }
 
 func (f *ChatBotFactory) GetChatBot(project string) (*ChatBot, bool) {
