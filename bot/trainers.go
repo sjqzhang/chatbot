@@ -79,7 +79,15 @@ func (trainer *CorpusTrainer) TrainWithCorpus(corpuses map[string][][]string) er
 
 	for _, convs := range corpuses {
 		for _, conv := range convs {
-			convTrainer.Train(conv)
+			titles := strings.Split(conv[0], "|")
+			if len(titles) == 1 {
+				titles = strings.Split(conv[0], "｜")
+			}
+			for _, title := range titles {
+				conv[0] = title
+				convTrainer.Train(conv)
+			}
+
 		}
 	}
 	trainer.storage.BuildIndex()
