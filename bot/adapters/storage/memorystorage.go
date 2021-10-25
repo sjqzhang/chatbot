@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/tal-tech/go-zero/core/lang"
 	"github.com/tal-tech/go-zero/core/mr"
@@ -159,9 +160,24 @@ func (storage *memoryStorage) Sync() error {
 
 	return storage.writer.Encode(storage.indexes)
 }
-
+//TODO 大量处理字符串，性能不是很好，后期考虑优化
 func (storage *memoryStorage) Update(text string, responses map[string]int) {
-	storage.responses[text] = responses
+	titles := strings.Split(text, "|")
+	if len(titles) == 1 {
+		titles = strings.Split(text, "｜")
+	}
+	for _, title := range titles {
+		for k, _ := range responses {
+			kv := strings.Split(k, "$$$$")
+			if len(kv)>1 {
+				response := make(map[string]int)
+				response[fmt.Sprintf("%s$$$$%s", title, kv[1])] = 1
+				storage.responses[title] = response
+			} else {
+				storage.responses[title] = responses
+			}
+		}
+	}
 }
 
 func (storage *memoryStorage) buildKeys() []string {
