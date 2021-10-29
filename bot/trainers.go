@@ -44,9 +44,9 @@ func (trainer *ConversationTrainer) Train(data interface{}) error {
 		return errors.New("ConversationTrainer.Train needs arguments to be []string")
 	}
 
-	if len(sentences) == 2 {
-		sentences[1] = fmt.Sprintf("%s$$$$%s", sentences[0], sentences[1])
-	}
+	//if len(sentences) == 2 {
+	//	sentences[1] = sentences[1] //fmt.Sprintf("%s$$$$%s", sentences[0], sentences[1])
+	//}
 
 	var history string
 	for _, sentence := range sentences {
@@ -79,15 +79,7 @@ func (trainer *CorpusTrainer) TrainWithCorpus(corpuses map[string][][]string) er
 
 	for _, convs := range corpuses {
 		for _, conv := range convs {
-			titles := strings.Split(conv[0], "|")
-			if len(titles) == 1 {
-				titles = strings.Split(conv[0], "｜")
-			}
-			for _, title := range titles {
-				conv[0] = title
-				convTrainer.Train(conv)
-			}
-
+			convTrainer.Train(conv)
 		}
 	}
 	trainer.storage.BuildIndex()

@@ -9,6 +9,7 @@ import (
 	"github.com/kevwan/chatbot/bot"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ type QA struct {
 	Question string  `json:"question"`
 	Answer   string  `json:"answer"`
 	Score    float32 `json:"score"`
+	ID       int     `json:"id"`
 }
 
 func init() {
@@ -53,12 +55,13 @@ func bindRounter(router *gin.Engine) {
 		var qas []QA
 		for _, answer := range answers {
 			contents := strings.Split(answer.Content, "$$$$")
-			if len(contents) > 1 {
+			if len(contents) > 2 {
 				qa := QA{
 					Question: contents[0],
 					Answer:   contents[1],
 					Score:    answer.Confidence,
 				}
+				qa.ID, _ = strconv.Atoi(contents[2])
 				qas = append(qas, qa)
 			}
 		}
@@ -70,6 +73,7 @@ func bindRounter(router *gin.Engine) {
 		var corpus bot.Corpus
 
 		context.Bind(&corpus)
+
 		project := corpus.Project
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
@@ -87,8 +91,21 @@ func bindRounter(router *gin.Engine) {
 			return
 		}
 		answer := make(map[string]int)
-		answer[fmt.Sprintf("%s$$$$%s", corpus.Question, corpus.Answer)] = 1
-		chatbot.StorageAdapter.Update(corpus.Question, answer)
+		exp, err := regexp.Compile(`[|｜\r\n]+`)
+		if err != nil {
+			context.JSON(500, JsonResult{
+				Msg: err.Error(),
+			})
+			return
+		}
+		questions := exp.Split(corpus.Question, -1)
+		for _, question := range questions {
+			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
+				question = question + "?"
+			}
+			answer[fmt.Sprintf("%s$$$$%s$$$$%v", question, corpus.Answer, corpus.Id)] = 1
+			chatbot.StorageAdapter.Update(question, answer)
+		}
 		chatbot.StorageAdapter.BuildIndex()
 		context.JSON(200, JsonResult{
 			Code: 0,
@@ -111,12 +128,36 @@ func bindRounter(router *gin.Engine) {
 			})
 		}
 		q := context.Query("q")
+		if !strings.HasSuffix(q, "?") && !strings.HasSuffix(q, "？") {
+			q = q + "?"
+		}
 		results := chatbot.GetResponse(q)
 		qas := buildAnswer(results)
-		msg := "ok"
-		if len(results) == 0 {
-			msg = "not found"
+		if len(qas) > 0 {
+			feedback := bot.Feedback{
+				Question: q,
+				Answer:   qas[0].Answer,
+				Cid:      qas[0].ID,
+			}
+			chatbot.AddFeedbackToDB(&feedback)
+		} else {
+			answer := "对不起，没有找答案,请详细描述你的问题（文字不少于15个汉字），\n我们会自动收集你的问题并进行反馈，谢谢！！"
+			if len(q) > 45 {
+				answer = "对不起，没有找答案,你的问题我已经记录并反馈，无需重复提交，谢谢！！！。"
+				feedback := bot.Feedback{
+					Question: q,
+					Answer:   "",
+					Cid:      0,
+				}
+				chatbot.AddFeedbackToDB(&feedback)
+			}
+			qa := QA{
+				Answer:   answer,
+				Question: q,
+			}
+			qas = append(qas, qa)
 		}
+		msg := "ok"
 		context.JSON(200, JsonResult{
 			Code: 0,
 			Msg:  msg,
@@ -167,8 +208,14 @@ func bindRounter(router *gin.Engine) {
 		var start int
 		var limit int
 		start, _ = strconv.Atoi(context.PostForm("start"))
-		limit, _ = strconv.Atoi(context.PostForm("limit"))
+		limit, _ = strconv.Atoi(context.PostForm("length"))
 		context.Bind(&corpus)
+		search := context.PostFormMap("search")
+		if len(search) > 0 {
+			if q, ok := search["value"]; ok {
+				corpus.Question = q
+			}
+		}
 		projects := factory.ListCorpus(corpus, start, limit)
 		context.JSON(200, JsonResult{
 			Code: 0,
