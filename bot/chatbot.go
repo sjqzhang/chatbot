@@ -8,6 +8,8 @@ import (
 	"github.com/kevwan/chatbot/bot/corpus"
 	"github.com/prometheus/common/log"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 
 	//"github.com/jinzhu/gorm"
@@ -54,7 +56,7 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			panic(err)
 		}
-		err = engine.Sync2(&Corpus{}, &Project{})
+		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
 		if err != nil {
 			log.Error(err)
 		}
@@ -117,7 +119,7 @@ func (f *ChatBotFactory) ListProject() []Project {
 func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpus {
 	var corpuses []Corpus
 	var err error
-	err = engine.Limit(limit, start).Find(&corpuses, corpus)
+	err = engine.Limit(limit, start).Where("question like ?", "%"+corpus.Question+"%").Find(&corpuses)
 	if err != nil {
 		log.Error(err)
 	}
@@ -135,7 +137,7 @@ func (chatbot *ChatBot) Init() {
 		panic(err)
 	}
 
-	err = engine.Sync2(&Corpus{}, &Project{})
+	err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
 	if err != nil {
 		log.Error(err)
 	}
@@ -151,6 +153,7 @@ func (chatbot *ChatBot) Init() {
 		}
 	}
 	err = chatbot.TrainWithDB()
+	log.Error(err)
 	if err != nil {
 		panic(err)
 	}
@@ -158,6 +161,22 @@ func (chatbot *ChatBot) Init() {
 
 type Corpus struct {
 	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question    string    `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
+	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
+	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount string    `json:"accept_count" form:"accept_count" xorm:"int notnull  'accept_count' comment('解决次数')"`
+	RejectCount string    `json:"reject_count" form:"reject_count" xorm:"int notnull  'reject_count' comment('解决次数')"`
+	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
+	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+}
+
+type Feedback struct {
+	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Cid         int       `json:"cid" form:"cid" xorm:"int  notnull 'cid' comment('语料编号')"`
 	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
 	Question    string    `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
@@ -222,9 +241,20 @@ func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 		return nil, err
 	}
 	var corpuses [][]string
+	exp, err := regexp.Compile(`[|｜\r\n]+`)
+	if err != nil {
+		return nil, err
+	}
 	for _, row := range rows {
 		var corpus []string
-		corpus = append(corpus, row.Question, row.Answer)
+		questions := exp.Split(row.Question, -1)
+
+		for _, question := range questions {
+			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
+				question = question + "?"
+			}
+			corpus = append(corpus, question, fmt.Sprintf("%s$$$$%s$$$$%v", question, row.Answer, row.Id))
+		}
 		corpuses = append(corpuses, corpus)
 	}
 	results[chatbot.Config.Project] = corpuses
@@ -254,11 +284,38 @@ func (chatbot *ChatBot) SaveCorpusToDB(corpuses map[string][][]string) {
 
 }
 
+func (chatbot *ChatBot) AddFeedbackToDB(feedback *Feedback) error {
+	corpus := Corpus{
+		Id: feedback.Cid,
+	}
+	var (
+		ok  bool
+		err error
+	)
+	if ok, _ = engine.Get(&corpus); ok {
+		feedback.Project = corpus.Project
+		feedback.Class = corpus.Class
+		_, err = engine.Insert(feedback)
+		return err
+	} else {
+		_, err = engine.Insert(feedback)
+	}
+
+	return err
+
+}
+
 func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 	q := Corpus{
 		Question: corpus.Question,
 		Class:    corpus.Class,
 	}
+	if corpus.Id != 0 {
+		q = Corpus{
+			Id: corpus.Id,
+		}
+	}
+
 	if ok, err := engine.Get(&q); !ok {
 		_, err = engine.Insert(corpus)
 		return err
@@ -354,6 +411,5 @@ func (chatbot *ChatBot) GetResponse(text string) []logic.Answer {
 	if chatbot.LogicAdapter.CanProcess(text) {
 		return chatbot.LogicAdapter.Process(text)
 	}
-
 	return nil
 }

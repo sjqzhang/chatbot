@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <title>Chat bot</title>
     <script src="jquery.js?id=1"></script>
+    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css"/>
+
 </head>
 <body>
 <div id="main">
 
+
+
     <div id="left" style="float: left;width: 49%">
+
 
         <span style="display: block;width: 100%;">项目：<select id="project" name="project" style="width: 80%;">
 
@@ -18,10 +24,27 @@
             -->
         </select></span>
 
-        <span style="display: block;width: 100%;">问题：<input id="question" name="question" style="width: 80%;"></span>
-        <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="30" cols="50"
+        <input type="hidden" id="id" name="id"/>
+        <span style="display: block;width: 100%;">问题：<textarea id="question" rows="3" name="question" style="width: 80%;"></textarea></span>
+        <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="10" cols="50"
                                                                       style="width: 80%;"></textarea></span>
+        <span><button id="btnReset">重置</button></span>
         <span><button id="btnAdd">增加到问题库</button></span>
+
+        <table id="table_id_example" class="display">
+            <thead>
+            <tr>
+                <th>编号</th>
+                <th>项目</th>
+                <th>问题</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+
 
     </div>
 
@@ -36,7 +59,57 @@
 
 <script>
     var HOST = window.location.host
+    function editCorpus(id){
+
+       var js= $('#c'+id).val()
+
+      var data=  JSON.parse(js)
+        $('#id').val(data.id)
+        $('#question').val(data.question)
+        $('#answer').val(data.answer)
+
+    }
+
     $(document).ready(function () {
+
+
+        $('#btnReset').click(function (){
+            $('#id').val('0')
+            $('#question').val('')
+            $('#answer').val('')
+        })
+
+        $('#table_id_example').DataTable({
+            paging:true,
+            searching:true,
+            processing:true,
+            serverSide: true,
+            // ajax发起请求
+            ajax: {
+                url: 'http://' + HOST + '/v1/list/corpus',
+                type: 'post',
+
+            },
+
+            columns: [
+                {'data':'id',"defaultContent": "默认值",'className':'类名'},
+                {'data':'project',"defaultContent": "默认值",'className':'类名'},
+                {'data':'question',"defaultContent": "默认值",'className':'类名','render':function ( val, type, data, meta ) {
+                    return '<span title="'+data.answer+'">'+val+'</span>'
+                }},
+                {'data':'question',"defaultContent": "默认值",'className':'类名'}
+            ],
+            createdRow:function(row,data,dataIndex){
+                var id = data.id;
+                //debugger
+                var js=JSON.stringify(data)
+
+                var td = $(row).find('td:last-child');
+                var html ="<textarea style='display: none;' id='c"+id+"'>"+js+"</textarea>"+ "<a onclick='editCorpus("+id+")'>编辑</a>";
+                td.html(html)
+            }
+        });
+
 
         $.get('http://' + HOST + '/v1/list/project', function (resp) {
             var projects = resp.data
@@ -49,11 +122,13 @@
 
         $('#btnAdd').click(function () {
             var data = {
+                'id': $('#id').val(),
                 'question': $('#question').val(),
                 'answer': $('#answer').val(),
                 'project': $('#project').val(), 'class': '测试', 'qtype': 1
             }
             $.post('http://' + HOST + '/v1/add', data, function (resp) {
+                $('#id').val('0')
                 if (resp.code == 0) {
                     alert('增加成功！')
                 } else {
