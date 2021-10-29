@@ -70,6 +70,7 @@ func (f *ChatBotFactory) Init() {
 		if project.Name == "" {
 			continue
 		}
+		conf.Project=project.Name
 		if _, ok := f.GetChatBot(project.Name); !ok {
 			store, _ := storage.NewSeparatedMemoryStorage(fmt.Sprintf("%s.gob", project.Name))
 			chatbot := &ChatBot{
