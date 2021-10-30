@@ -25,11 +25,11 @@
         </select></span>
 
         <input type="hidden" id="id" name="id"/>
-        <span style="display: block;width: 100%;">问题：<textarea id="question" rows="3" name="question" style="width: 80%;"></textarea></span>
+        <span style="display: block;width: 100%;">问题：<textarea id="question" title="每行一个问题，多行表示多种问法，但答案都是同一个。" rows="3" name="question" style="width: 80%;"></textarea></span>
         <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="10" cols="50"
                                                                       style="width: 80%;"></textarea></span>
         <span><button id="btnReset">重置</button></span>
-        <span><button id="btnAdd">增加到问题库</button></span>
+        <span><button id="btnAdd">增加到问题库</button></span> <span id="tips"></span>
 
         <table id="table_id_example" class="display">
             <thead>
@@ -73,13 +73,8 @@
     $(document).ready(function () {
 
 
-        $('#btnReset').click(function (){
-            $('#id').val('0')
-            $('#question').val('')
-            $('#answer').val('')
-        })
 
-        $('#table_id_example').DataTable({
+        var table=$('#table_id_example').DataTable({
             paging:true,
             searching:true,
             processing:true,
@@ -111,6 +106,15 @@
         });
 
 
+        $('#btnReset').click(function (){
+            $('#id').val('0')
+            $('#question').val('')
+            $('#answer').val('')
+            table.ajax.reload()
+
+        })
+
+
         $.get('http://' + HOST + '/v1/list/project', function (resp) {
             var projects = resp.data
             var options = []
@@ -128,11 +132,11 @@
                 'project': $('#project').val(), 'class': '测试', 'qtype': 1
             }
             $.post('http://' + HOST + '/v1/add', data, function (resp) {
-                $('#id').val('0')
                 if (resp.code == 0) {
-                    alert('增加成功！')
+                    $('#btnReset').trigger('click')
+                    $('#tips').html('<span style="color: green">保存成功</span>')
                 } else {
-                    alert('增加失败！')
+                    $('#tips').html('<span style="color: red">保存失败</span>')
                 }
             })
         })
