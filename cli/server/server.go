@@ -74,6 +74,8 @@ func bindRounter(router *gin.Engine) {
 
 		context.Bind(&corpus)
 
+		corpus.Qtype = int(bot.CORPUS_CORPUS)
+
 		project := corpus.Project
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
@@ -221,6 +223,52 @@ func bindRounter(router *gin.Engine) {
 			Code: 0,
 			Msg:  "success",
 			Data: projects,
+		})
+
+	})
+
+	v1.POST("add/requirement", func(context *gin.Context) {
+		var corpus bot.Corpus
+
+		context.Bind(&corpus)
+		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
+		project := corpus.Project
+		var chatbot *bot.ChatBot
+		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
+			context.JSON(200, JsonResult{
+				Code: 404,
+				Msg:  fmt.Sprintf("project '%s' not found", project),
+			})
+		}
+		corpus.Question = strings.ToLower(corpus.Question)
+		err := chatbot.AddCorpusToDB(&corpus)
+		msg := "success"
+		if err != nil {
+			msg = err.Error()
+		}
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  msg,
+			Data: err,
+		})
+
+	})
+
+	v1.POST("feedback", func(context *gin.Context) {
+		id, _ := strconv.Atoi(context.PostForm("id"))
+		isOk := false
+		if context.PostForm("isOk") == "1" {
+			isOk = true
+		}
+		err := factory.UpdateCorpusCounter(id, isOk)
+		msg := "success"
+		if err != nil {
+			msg = err.Error()
+		}
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  msg,
+			Data: err,
 		})
 
 	})
