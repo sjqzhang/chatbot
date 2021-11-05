@@ -44,10 +44,35 @@ type QA struct {
 	ID       int     `json:"id"`
 }
 
+type ResoveReq struct {
+	IsOk bool `json:"is_ok"`
+	Id   int  `json:"id"`
+}
+
 func init() {
 
 	flag.Parse()
 
+}
+
+func HandlerResult(ctx *gin.Context, data *interface{}, err *error) {
+	message := "success"
+	if *err!=nil{
+		message=(*err).Error()
+	}
+	if *err != nil {
+		ctx.JSON(200, JsonResult{
+			Msg:  message,
+			Code: 500,
+			Data: data,
+		})
+	} else {
+		ctx.JSON(200, JsonResult{
+			Msg:  message,
+			Code: 0,
+			Data: data,
+		})
+	}
 }
 
 func bindRounter(router *gin.Engine) {
@@ -67,9 +92,13 @@ func bindRounter(router *gin.Engine) {
 		}
 		return qas
 	}
-	v1 := router.Group("v1")
+	v1 := router.Group("api/v1")
 	v1.POST("add", func(context *gin.Context) {
-
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 
 		context.Bind(&corpus)
@@ -79,25 +108,17 @@ func bindRounter(router *gin.Engine) {
 		project := corpus.Project
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
-			context.JSON(200, JsonResult{
-				Code: 404,
-				Msg:  fmt.Sprintf("project '%s' not found", project),
-			})
+			err = fmt.Errorf("project '%s' not found", project)
+			return
 		}
 		corpus.Question = strings.ToLower(corpus.Question)
-		err := chatbot.AddCorpusToDB(&corpus)
+		err = chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
-			context.JSON(500, JsonResult{
-				Msg: err.Error(),
-			})
 			return
 		}
 		answer := make(map[string]int)
 		exp, err := regexp.Compile(`[|｜\r\n]+`)
 		if err != nil {
-			context.JSON(500, JsonResult{
-				Msg: err.Error(),
-			})
 			return
 		}
 		questions := exp.Split(corpus.Question, -1)
@@ -109,14 +130,14 @@ func bindRounter(router *gin.Engine) {
 			chatbot.StorageAdapter.Update(question, answer)
 		}
 		chatbot.StorageAdapter.BuildIndex()
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  "success",
-		})
-
 	})
 
 	v1.GET("search", func(context *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
 		p := context.Query("p")
 		if p == "" {
 			p = *project
@@ -124,10 +145,10 @@ func bindRounter(router *gin.Engine) {
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
 			factory.Refresh()
-			context.JSON(200, JsonResult{
-				Code: 404,
-				Msg:  fmt.Sprintf("project '%s' not found,please retry 1 minute later.", p),
-			})
+
+			err = fmt.Errorf("project '%s' not found,please retry 1 minute later.", p)
+
+			return
 		}
 		q := context.Query("q")
 		if !strings.HasSuffix(q, "?") && !strings.HasSuffix(q, "？") {
@@ -159,50 +180,36 @@ func bindRounter(router *gin.Engine) {
 			}
 			qas = append(qas, qa)
 		}
-		msg := "ok"
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  msg,
-			Data: qas,
-		})
+		data = qas
 	})
 
 	v1.POST("remove", func(context *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(*project); chatbot == nil {
-			context.JSON(200, JsonResult{
-				Code: 404,
-				Msg:  fmt.Sprintf("project '%s' not found", *project),
-			})
+			err = fmt.Errorf("project '%s' not found", *project)
+			return
 		}
-
 		context.Bind(&corpus)
-		err := chatbot.RemoveCorpusFromDB(&corpus)
+		err = chatbot.RemoveCorpusFromDB(&corpus)
 		if err != nil {
-			context.JSON(500, JsonResult{
-				Msg: err.Error(),
-			})
 			return
 		}
 		chatbot.StorageAdapter.BuildIndex()
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  "success",
-		})
-
 	})
 
 	v1.GET("list/project", func(context *gin.Context) {
-
 		projects := factory.ListProject()
-
 		context.JSON(200, JsonResult{
 			Code: 0,
 			Msg:  "success",
 			Data: projects,
 		})
-
 	})
 
 	v1.POST("list/corpus", func(context *gin.Context) {
@@ -228,49 +235,42 @@ func bindRounter(router *gin.Engine) {
 	})
 
 	v1.POST("add/requirement", func(context *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
-
 		context.Bind(&corpus)
 		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
 		project := corpus.Project
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
-			context.JSON(200, JsonResult{
-				Code: 404,
-				Msg:  fmt.Sprintf("project '%s' not found", project),
-			})
+			err = fmt.Errorf("project '%s' not found", project)
+			return
 		}
 		corpus.Question = strings.ToLower(corpus.Question)
-		err := chatbot.AddCorpusToDB(&corpus)
-		msg := "success"
+		err = chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
-			msg = err.Error()
+			return
 		}
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  msg,
-			Data: err,
-		})
-
 	})
 
 	v1.POST("feedback", func(context *gin.Context) {
-		id, _ := strconv.Atoi(context.PostForm("id"))
-		isOk := false
-		if context.PostForm("isOk") == "1" {
-			isOk = true
-		}
-		err := factory.UpdateCorpusCounter(id, isOk)
-		msg := "success"
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
+		var req ResoveReq
+		err = context.Bind(&req)
 		if err != nil {
-			msg = err.Error()
+			return
 		}
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  msg,
-			Data: err,
-		})
-
+		err = factory.UpdateCorpusCounter(req.Id, req.IsOk)
+		if err != nil {
+			return
+		}
 	})
 
 }
