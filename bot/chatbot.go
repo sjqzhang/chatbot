@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	//"github.com/jinzhu/gorm"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"github.com/kevwan/chatbot/bot/adapters/storage"
 	_ "github.com/mattn/go-sqlite3"
@@ -171,8 +171,8 @@ type Corpus struct {
 	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
 	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string    `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
-	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
+	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer      string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
@@ -187,8 +187,8 @@ type Feedback struct {
 	Cid         int       `json:"cid" form:"cid" xorm:"int  notnull 'cid' comment('语料编号')"`
 	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string    `json:"question" form:"question"  xorm:"varchar(512) notnull index  'question' comment('问题')"`
-	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
+	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer      string    `json:"answer" form:"answer" xorm:"text notnull   'answer' comment('回答')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
@@ -201,7 +201,7 @@ type Feedback struct {
 type Project struct {
 	Id     int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
 	Name   string `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
-	Config string `json:"config" form:"config"  xorm:"varchar(102400) notnull 'config' comment('配置')"`
+	Config string `json:"config" form:"config"  xorm:"text notnull 'config' comment('配置')"`
 	//Config Config
 }
 
