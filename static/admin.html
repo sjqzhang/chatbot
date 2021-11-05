@@ -35,6 +35,7 @@
             <thead>
             <tr>
                 <th>编号</th>
+                <th>分类</th>
                 <th>项目</th>
                 <th>问题</th>
                 <th>操作</th>
@@ -58,7 +59,7 @@
 
 
 <script>
-    var HOST = window.location.protocol + '//' + window.location.host+'/api'
+    var HOST = window.location.protocol + '//' + window.location.host + '/api'
     if (window.location.pathname.startsWith('/api/chatbot/')) {
         HOST = HOST + '/api/chatbot'
     }
@@ -99,6 +100,18 @@
 
             columns: [
                 {'data': 'id', "defaultContent": "默认值", 'className': '类名'},
+                {
+                    'data': 'qtype',
+                    "defaultContent": "默认值",
+                    'className': '类名',
+                    render: function (val, type, data, meta) {
+                        if(val==1 || val=='1') {
+                            return '问答'
+                        } else {
+                            return '需求'
+                        }
+                    }
+                },
                 {'data': 'project', "defaultContent": "默认值", 'className': '类名'},
                 {
                     'data': 'question',
@@ -149,16 +162,16 @@
                 'project': $('#project').val(), 'class': '测试', 'qtype': 1
             }
             $.post(HOST + '/v1/add', data, function (resp) {
-                resp=parseToJson(resp)
+                resp = parseToJson(resp)
                 if (resp.code == 0) {
                     $('#btnReset').trigger('click')
                     $('#tips').html('<span style="color: green">保存成功</span>')
                 } else {
                     $('#tips').html('<span style="color: red">保存失败</span>')
                 }
-                setTimeout(function (){
+                setTimeout(function () {
                     $('#tips').html('')
-                },1000)
+                }, 1000)
             })
         })
         $('#q').keyup(function (e) {
@@ -168,7 +181,7 @@
         })
         $('#btnQuery').click(function () {
             $.get(HOST + '/v1/search?q=' + $('#q').val() + '？&p=' + $('#project').val(), function (resp) {
-                resp=parseToJson(resp)
+                resp = parseToJson(resp)
                 if (resp.code == 0) {
                     var data = resp.data
                     if (data != null && data.length > 0) {
