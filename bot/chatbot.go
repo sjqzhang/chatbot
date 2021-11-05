@@ -175,8 +175,8 @@ type Corpus struct {
 	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull  'accept_count' comment('解决次数')"`
-	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  'reject_count' comment('解决次数')"`
+	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
@@ -191,8 +191,8 @@ type Feedback struct {
 	Answer      string    `json:"answer" form:"answer" xorm:"varchar(102400) notnull  'answer' comment('回答')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull  'accept_count' comment('解决次数')"`
-	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  'reject_count' comment('解决次数')"`
+	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
