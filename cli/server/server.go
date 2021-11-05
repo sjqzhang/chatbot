@@ -123,6 +123,9 @@ func bindRounter(router *gin.Engine) {
 		}
 		questions := exp.Split(corpus.Question, -1)
 		for _, question := range questions {
+			if strings.TrimSpace(question)==""{
+				continue
+			}
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
 				question = question + "?"
 			}
