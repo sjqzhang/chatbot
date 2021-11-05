@@ -12,7 +12,6 @@
 <div id="main">
 
 
-
     <div id="left" style="float: left;width: 49%">
 
 
@@ -25,11 +24,12 @@
         </select></span>
 
         <input type="hidden" id="id" name="id"/>
-        <span style="display: block;width: 100%;">问题：<textarea id="question" title="每行一个问题，多行表示多种问法，但答案都是同一个。" rows="3" name="question" style="width: 80%;"></textarea></span>
+        <span style="display: block;width: 100%;">问题：<textarea id="question" title="每行一个问题，多行表示多种问法，但答案都是同一个。" rows="3"
+                                                               name="question" style="width: 80%;"></textarea></span>
         <span style="display: block;width: 100%;:width;">答案：<textarea id="answer" name="answer" rows="10" cols="50"
                                                                       style="width: 80%;"></textarea></span>
         <span><button id="btnReset">重置</button></span>
-        <span><button id="btnAdd">增加到问题库</button></span> <span id="tips"></span>
+        <span><button id="btnAdd">保存</button></span> <span id="tips"></span>
 
         <table id="table_id_example" class="display">
             <thead>
@@ -58,55 +58,71 @@
 
 
 <script>
-    var HOST = window.location.host
-    function editCorpus(id){
+    var HOST = window.location.protocol + '//' + window.location.host
+    if (window.location.pathname.startsWith('/api/chatbot/')) {
+        HOST = HOST + '/api/chatbot'
+    }
 
-       var js= $('#c'+id).val()
+    function editCorpus(id) {
 
-      var data=  JSON.parse(js)
+        var js = $('#c' + id).val()
+
+        var data = JSON.parse(js)
         $('#id').val(data.id)
         $('#question').val(data.question)
         $('#answer').val(data.answer)
 
     }
 
+    function parseToJson(data) {
+        if ($.isPlainObject(data)) {
+            return data
+        } else {
+            return JSON.parse(data)
+        }
+    }
+
     $(document).ready(function () {
 
 
-
-        var table=$('#table_id_example').DataTable({
-            paging:true,
-            searching:true,
-            processing:true,
+        var table = $('#table_id_example').DataTable({
+            paging: true,
+            searching: true,
+            processing: true,
             serverSide: true,
             // ajax发起请求
             ajax: {
-                url: 'http://' + HOST + '/v1/list/corpus',
+                url: HOST + '/v1/list/corpus',
                 type: 'post',
 
             },
 
             columns: [
-                {'data':'id',"defaultContent": "默认值",'className':'类名'},
-                {'data':'project',"defaultContent": "默认值",'className':'类名'},
-                {'data':'question',"defaultContent": "默认值",'className':'类名','render':function ( val, type, data, meta ) {
-                    return '<span title="'+data.answer+'">'+val+'</span>'
-                }},
-                {'data':'question',"defaultContent": "默认值",'className':'类名'}
+                {'data': 'id', "defaultContent": "默认值", 'className': '类名'},
+                {'data': 'project', "defaultContent": "默认值", 'className': '类名'},
+                {
+                    'data': 'question',
+                    "defaultContent": "默认值",
+                    'className': '类名',
+                    'render': function (val, type, data, meta) {
+                        return '<span title="' + data.answer + '">' + val + '</span>'
+                    }
+                },
+                {'data': 'question', "defaultContent": "默认值", 'className': '类名'}
             ],
-            createdRow:function(row,data,dataIndex){
+            createdRow: function (row, data, dataIndex) {
                 var id = data.id;
                 //debugger
-                var js=JSON.stringify(data)
+                var js = JSON.stringify(data)
 
                 var td = $(row).find('td:last-child');
-                var html ="<textarea style='display: none;' id='c"+id+"'>"+js+"</textarea>"+ "<a onclick='editCorpus("+id+")'>编辑</a>";
+                var html = "<textarea style='display: none;' id='c" + id + "'>" + js + "</textarea>" + "<a onclick='editCorpus(" + id + ")'>编辑</a>";
                 td.html(html)
             }
         });
 
 
-        $('#btnReset').click(function (){
+        $('#btnReset').click(function () {
             $('#id').val('0')
             $('#question').val('')
             $('#answer').val('')
@@ -115,7 +131,8 @@
         })
 
 
-        $.get('http://' + HOST + '/v1/list/project', function (resp) {
+        $.get(HOST + '/v1/list/project', function (resp) {
+            resp = parseToJson(resp)
             var projects = resp.data
             var options = []
             for (var i = 0; i < projects.length; i++) {
@@ -131,13 +148,17 @@
                 'answer': $('#answer').val(),
                 'project': $('#project').val(), 'class': '测试', 'qtype': 1
             }
-            $.post('http://' + HOST + '/v1/add', data, function (resp) {
+            $.post(HOST + '/v1/add', data, function (resp) {
+                resp=parseToJson(resp)
                 if (resp.code == 0) {
                     $('#btnReset').trigger('click')
                     $('#tips').html('<span style="color: green">保存成功</span>')
                 } else {
                     $('#tips').html('<span style="color: red">保存失败</span>')
                 }
+                setTimeout(function (){
+                    $('#tips').html('')
+                },1000)
             })
         })
         $('#q').keyup(function (e) {
@@ -146,9 +167,9 @@
             }
         })
         $('#btnQuery').click(function () {
-            $.get('http://' + HOST + '/v1/search?q=' + $('#q').val() + '？&p=' + $('#project').val(), function (resp) {
+            $.get(HOST + '/v1/search?q=' + $('#q').val() + '？&p=' + $('#project').val(), function (resp) {
+                resp=parseToJson(resp)
                 if (resp.code == 0) {
-                    // debugger
                     var data = resp.data
                     if (data != null && data.length > 0) {
                         $('#result').html('<pre style="color: coral;">我猜你的问题是：' + data[0].question + ' </pre> <pre style="width: width:100%;">答案：' + data[0].answer + '</pre>')
