@@ -245,6 +245,14 @@ func bindRounter(router *gin.Engine) {
 		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		context.Bind(&corpus)
+		if len(corpus.Question)<45 {
+			err=fmt.Errorf("标题于简单，不少于15个汉字！！！")
+			return
+		}
+		if len(corpus.Answer)<120 {
+			err=fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
+			return
+		}
 		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
 		project := corpus.Project
 		var chatbot *bot.ChatBot

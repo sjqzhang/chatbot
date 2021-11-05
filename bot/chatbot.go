@@ -173,6 +173,7 @@ type Corpus struct {
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
 	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
 	Answer      string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
@@ -189,6 +190,7 @@ type Feedback struct {
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
 	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
 	Answer      string    `json:"answer" form:"answer" xorm:"text notnull   'answer' comment('回答')"`
+	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
@@ -259,6 +261,9 @@ func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 		questions := exp.Split(row.Question, -1)
 
 		for _, question := range questions {
+			if strings.TrimSpace(question) == "" {
+				continue
+			}
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
 				question = question + "?"
 			}
