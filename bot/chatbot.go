@@ -323,8 +323,9 @@ func (chatbot *ChatBotFactory) UpdateCorpusCounter(id int, isOk bool) error {
 	}
 	var (
 		err error
+		ok  bool
 	)
-	if ok, _ := engine.Get(&q); ok {
+	if ok, err = engine.Get(&q); ok {
 		if isOk {
 			q.AcceptCount = q.AcceptCount + 1
 		} else {
@@ -333,6 +334,8 @@ func (chatbot *ChatBotFactory) UpdateCorpusCounter(id int, isOk bool) error {
 		if id > 0 {
 			_, err = engine.Id(id).Cols("reject_count", "accept_count").Update(&q)
 		}
+	} else {
+		err = fmt.Errorf("record not found")
 	}
 	return err
 
