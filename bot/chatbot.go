@@ -315,6 +315,9 @@ func (chatbot *ChatBot) AddFeedbackToDB(feedback *Feedback) error {
 }
 
 func (chatbot *ChatBotFactory) UpdateCorpusCounter(id int, isOk bool) error {
+	if id <= 0 {
+		return fmt.Errorf("%v", "编号<0不合法")
+	}
 	q := Corpus{
 		Id: id,
 	}
@@ -327,7 +330,9 @@ func (chatbot *ChatBotFactory) UpdateCorpusCounter(id int, isOk bool) error {
 		} else {
 			q.RejectCount = q.RejectCount + 1
 		}
-		_, err = engine.Update(q, &Corpus{Id: id})
+		if id > 0 {
+			_, err = engine.Id(id).Cols("reject_count", "accept_count").Update(&q)
+		}
 	}
 	return err
 
