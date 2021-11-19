@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/gobuffalo/packr"
-	"github.com/kevwan/chatbot/bot"
-	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/gobuffalo/packr"
+	"github.com/kevwan/chatbot/bot"
+	"github.com/kevwan/chatbot/bot/adapters/logic"
 )
 
 var factory *bot.ChatBotFactory
@@ -49,6 +50,11 @@ type ResoveReq struct {
 	Id   int  `json:"id"`
 }
 
+type BoardJiraReq struct {
+	Board string `json:"board"`
+	Id    int    `json:"id"`
+}
+
 func init() {
 
 	flag.Parse()
@@ -57,8 +63,8 @@ func init() {
 
 func HandlerResult(ctx *gin.Context, data *interface{}, err *error) {
 	message := "success"
-	if *err!=nil{
-		message=(*err).Error()
+	if *err != nil {
+		message = (*err).Error()
 	}
 	if *err != nil {
 		ctx.JSON(200, JsonResult{
@@ -123,7 +129,7 @@ func bindRounter(router *gin.Engine) {
 		}
 		questions := exp.Split(corpus.Question, -1)
 		for _, question := range questions {
-			if strings.TrimSpace(question)==""{
+			if strings.TrimSpace(question) == "" {
 				continue
 			}
 			if !strings.HasSuffix(question, "?") && !strings.HasSuffix(question, "？") {
@@ -141,49 +147,88 @@ func bindRounter(router *gin.Engine) {
 			err  error
 		)
 		defer HandlerResult(context, &data, &err)
-		p := context.Query("p")
-		if p == "" {
-			p = *project
-		}
-		var chatbot *bot.ChatBot
-		if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
-			factory.Refresh()
-
-			err = fmt.Errorf("project '%s' not found,please retry 1 minute later.", p)
-
+		qusString := context.Query("qus_type")
+		qusType, err := strconv.Atoi(qusString)
+		if err != nil {
+			err = fmt.Errorf("qus_type '%s' atoi err:'%s'", qusString, err)
 			return
 		}
 		q := context.Query("q")
-		if !strings.HasSuffix(q, "?") && !strings.HasSuffix(q, "？") {
-			q = q + "?"
-		}
-		results := chatbot.GetResponse(q)
-		qas := buildAnswer(results)
-		if len(qas) > 0 {
-			feedback := bot.Feedback{
-				Question: q,
-				Answer:   qas[0].Answer,
-				Cid:      qas[0].ID,
+		if qusType == int(bot.CORPUS_CORPUS) {
+			p := context.Query("p")
+			if p == "" {
+				p = *project
 			}
-			chatbot.AddFeedbackToDB(&feedback)
-		} else {
-			answer := "对不起，没有找答案,请详细描述你的问题（文字不少于15个汉字），\n我们会自动收集你的问题并进行反馈，谢谢！！"
-			if len(q) > 45 {
-				answer = "对不起，没有找答案,你的问题我已经记录并反馈，无需重复提交，谢谢！！！。"
+			var chatbot *bot.ChatBot
+			if chatbot, _ = factory.GetChatBot(p); chatbot == nil {
+				factory.Refresh()
+				err = fmt.Errorf("project '%s' not found,please retry 1 minute later.", p)
+				return
+			}
+			if !strings.HasSuffix(q, "?") && !strings.HasSuffix(q, "？") {
+				q = q + "?"
+			}
+			results := chatbot.GetResponse(q)
+			qas := buildAnswer(results)
+			if len(qas) > 0 {
 				feedback := bot.Feedback{
 					Question: q,
-					Answer:   "",
-					Cid:      0,
+					Answer:   qas[0].Answer,
+					Cid:      qas[0].ID,
 				}
 				chatbot.AddFeedbackToDB(&feedback)
+			} else {
+				answer := "对不起，没有找答案,请详细描述你的问题（文字不少于15个汉字），\n我们会自动收集你的问题并进行反馈，谢谢！！"
+				if len(q) > 45 {
+					answer = "对不起，没有找答案,你的问题我已经记录并反馈，无需重复提交，谢谢！！！。"
+					feedback := bot.Feedback{
+						Question: q,
+						Answer:   "",
+						Cid:      0,
+					}
+					chatbot.AddFeedbackToDB(&feedback)
+				}
+				qa := QA{
+					Answer:   answer,
+					Question: q,
+				}
+				qas = append(qas, qa)
 			}
-			qa := QA{
-				Answer:   answer,
-				Question: q,
+			data = qas
+		} else if qusType == int(bot.CORPUS_RULES) {
+			corpuses := factory.GetCorpusList(bot.CORPUS_TYPE(qusType))
+			var qas []QA
+			for _, corpus := range corpuses {
+				reg := regexp.MustCompile(corpus.Question)
+				if reg == nil {
+					continue
+				}
+				result := reg.FindAllString(q, -1)
+				if len(result) == 0 {
+					continue
+				}
+				qa := QA{
+					Answer:   corpus.Answer,
+					Question: q,
+				}
+				qas = append(qas, qa)
 			}
-			qas = append(qas, qa)
+			data = qas
 		}
-		data = qas
+	})
+
+	v1.GET("rule", func(context *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
+		corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  "success",
+			Data: corpuses,
+		})
 	})
 
 	v1.POST("remove", func(context *gin.Context) {
@@ -245,12 +290,12 @@ func bindRounter(router *gin.Engine) {
 		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		context.Bind(&corpus)
-		if len(corpus.Question)<45 {
-			err=fmt.Errorf("标题于简单，不少于15个汉字！！！")
+		if len(corpus.Question) < 45 {
+			err = fmt.Errorf("标题于简单，不少于15个汉字！！！")
 			return
 		}
-		if len(corpus.Answer)<120 {
-			err=fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
+		if len(corpus.Answer) < 120 {
+			err = fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
 			return
 		}
 		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
@@ -265,6 +310,20 @@ func bindRounter(router *gin.Engine) {
 		if err != nil {
 			return
 		}
+	})
+
+	v1.POST("jira", func(ctx *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(ctx, &data, &err)
+		var board BoardJiraReq
+		err = ctx.Bind(&board)
+		if err != nil {
+			return
+		}
+		factory.RequirementJira(board.Board, board.Id)
 	})
 
 	v1.POST("feedback", func(context *gin.Context) {

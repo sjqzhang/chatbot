@@ -4,21 +4,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-xorm/xorm"
-	"github.com/kevwan/chatbot/bot/corpus"
-	"github.com/prometheus/common/log"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
+	"git.garena.com/shopee/bg-logistics/qa/dms-jagent/utils/encrypt"
+	"github.com/andygrunwald/go-jira"
+	"github.com/go-xorm/xorm"
+	"github.com/kevwan/chatbot/bot/corpus"
+	"github.com/prometheus/common/log"
+
+	"runtime"
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"github.com/kevwan/chatbot/bot/adapters/storage"
 	_ "github.com/mattn/go-sqlite3"
-	"runtime"
-	"time"
 )
+
+func NewJiraOperation(base string, tp *jira.BasicAuthTransport) (j *jira.Client, err error) {
+	jiraClient, err := jira.NewClient(tp.Client(), base)
+	if err != nil {
+		return
+	}
+	return jiraClient, nil
+}
 
 const mega = 1024 * 1024
 
@@ -37,6 +49,7 @@ type CORPUS_TYPE int
 const (
 	CORPUS_CORPUS      CORPUS_TYPE = 1
 	CORPUS_REQUIREMENT CORPUS_TYPE = 2
+	CORPUS_RULES       CORPUS_TYPE = 3
 )
 
 type ChatBotFactory struct {
@@ -134,6 +147,63 @@ func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpu
 	return corpuses
 }
 
+func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
+	var corpuses []Corpus
+	err := engine.Where("qtype == ?", qusType).Find(&corpuses)
+	if err != nil {
+		log.Error(err)
+	}
+	return corpuses
+}
+
+func (f *ChatBotFactory) RequirementJira(board string, id int) {
+
+	var conf JiraConf
+	jiraClient, err := NewJiraOperation(conf.Base, &jira.BasicAuthTransport{
+		Username: conf.UserName,
+		Password: encrypt.AESDecrypt(conf.Password, conf.SecretKey),
+	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	projects, _, err := jiraClient.Project.GetList()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	var projectId string
+	for _, project := range *projects {
+		if project.Name == board {
+			projectId = project.ID
+		}
+	}
+	_, _, err = jiraClient.Issue.Create(&jira.Issue{
+		Fields: &jira.IssueFields{
+			Type:        jira.IssueType{},
+			Project:     jira.Project{ID: projectId},
+			Created:     jira.Time{},
+			Duedate:     jira.Date{},
+			Assignee:    &jira.User{},
+			Description: "",
+			Summary:     "",
+			Creator:     &jira.User{},
+			Reporter:    &jira.User{},
+		},
+	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	corpus := &Corpus{Id: id}
+	err = engine.Find(corpus)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	return
+}
+
 var engine *xorm.Engine
 
 func (chatbot *ChatBot) Init() {
@@ -180,7 +250,7 @@ type Corpus struct {
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Feedback struct {
@@ -197,7 +267,7 @@ type Feedback struct {
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Project struct {
@@ -213,6 +283,13 @@ type Config struct {
 	Project    string `json:"project"`
 	DirCorpus  string `json:"dir_corpus"`
 	StoreFile  string `json:"store_file"`
+}
+
+type JiraConf struct {
+	Base      string
+	UserName  string
+	Password  string
+	SecretKey string
 }
 
 func (chatbot *ChatBot) Train(data interface{}) error {

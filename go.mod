@@ -3,7 +3,8 @@ module github.com/kevwan/chatbot
 go 1.15
 
 require (
-	github.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd // indirect
+	git.garena.com/shopee/bg-logistics/qa/dms-jagent v0.1.124
+	github.com/andygrunwald/go-jira v1.14.0
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-sql-driver/mysql v1.5.0
@@ -12,7 +13,7 @@ require (
 	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/gobuffalo/packr v1.30.1
 	github.com/joho/godotenv v1.4.0 // indirect
-	github.com/mattn/go-sqlite3 v1.14.0
+	github.com/mattn/go-sqlite3 v2.0.1+incompatible
 	github.com/prometheus/common v0.26.0
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
