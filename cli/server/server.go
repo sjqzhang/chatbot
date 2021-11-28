@@ -307,7 +307,7 @@ func main() {
 	factory.Init()
 	router := gin.Default()
 	router.Use(Cors())
-	box := packr.NewBox("../../static")
+	box := packr.NewBox(".static")
 	_ = box
 	//router.StaticFS("/static", http.FileSystem(box))
 	router.StaticFS("/static", http.Dir("./static"))
