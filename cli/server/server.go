@@ -309,8 +309,8 @@ func main() {
 	router.Use(Cors())
 	box := packr.NewBox("./static")
 	_ = box
-	router.StaticFS("/static", http.FileSystem(box))
-	//router.StaticFS("/static", http.Dir("./static"))
+	//router.StaticFS("/static", http.FileSystem(box))
+	router.StaticFS("/static", http.Dir("./static"))
 	bindRounter(router)
 	router.Run(*bind)
 }
