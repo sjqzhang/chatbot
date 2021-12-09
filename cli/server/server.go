@@ -24,7 +24,7 @@ var (
 	dir     = flag.String("d", "/Users/dev/repo/chatterbot-corpus/chatterbot_corpus/data/chinese", "the directory to look for corpora files")
 	//sqliteDB = flag.String("sqlite3", "/Users/junqiang.zhang/repo/go/chatbot/chatbot.db", "the file path of the corpus sqlite3")
 	driver        = flag.String("driver", "sqlite3", "db driver")
-	datasource    = flag.String("datasource", "chatbot.db", "datasource connection")
+	datasource    = flag.String("datasource", "/Users/zipeng.li/go/src/chatbot/chatbot.db", "datasource connection")
 	bind          = flag.String("b", ":8080", "bind addr")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
@@ -50,9 +50,40 @@ type ResoveReq struct {
 	Id   int  `json:"id"`
 }
 
-type BoardJiraReq struct {
-	Board string `json:"board"`
-	Id    int    `json:"id"`
+type ruleDataReq struct {
+	Data  string `json:"data"`
+	Other string `json:"other"`
+}
+
+type ModifyCorpus struct {
+	Id       int    `json:"id"`
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
+type DeployLogRecordItem struct {
+	Ans []QueryLogResp `json:"ans"`
+}
+
+type QueryLogResp struct {
+	Id        int    `json:"id"`
+	Question  string `json:"question"`
+	Answer    string `json:"answer"`
+	Principal string `json:"principal"`
+}
+
+type DeployLogRecordList struct {
+	Logs []DeployLogRecordItem `json:"logs"`
+}
+
+type BuildLogAnysisResp struct {
+	Ans []string `json:"ans"`
+}
+
+type RuleResp struct {
+	DeployLogRecordList DeployLogRecordList `json:"deploy_log_record"`
+	AnysisRes           string              `json:"anysisRes"`
+	Flag                bool                `json:"flag"`
 }
 
 func init() {
@@ -195,25 +226,6 @@ func bindRounter(router *gin.Engine) {
 				qas = append(qas, qa)
 			}
 			data = qas
-		} else if qusType == int(bot.CORPUS_RULES) {
-			corpuses := factory.GetCorpusList(bot.CORPUS_TYPE(qusType))
-			var qas []QA
-			for _, corpus := range corpuses {
-				reg := regexp.MustCompile(corpus.Question)
-				if reg == nil {
-					continue
-				}
-				result := reg.FindAllString(q, -1)
-				if len(result) == 0 {
-					continue
-				}
-				qa := QA{
-					Answer:   corpus.Answer,
-					Question: q,
-				}
-				qas = append(qas, qa)
-			}
-			data = qas
 		}
 	})
 
@@ -223,15 +235,58 @@ func bindRounter(router *gin.Engine) {
 			err  error
 		)
 		defer HandlerResult(context, &data, &err)
+		var dataRule ruleDataReq
+		dataRule.Data = context.Query("data")
+		dataRule.Other = context.Query("other")
+		if err != nil {
+			return
+		}
 		corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
-		context.JSON(200, JsonResult{
-			Code: 0,
-			Msg:  "success",
-			Data: corpuses,
-		})
+		i := 0
+		resp := &RuleResp{}
+		var anysisRes string
+		var deployLogRecordList = new(DeployLogRecordList)
+		for _, rule := range corpuses {
+			reg, err := regexp.Compile("(?i)" + rule.Question)
+			if err != nil {
+				return
+			}
+			if reg == nil {
+				return
+			}
+			result := reg.FindAllString(dataRule.Data, -1)
+			var logItem = new(DeployLogRecordItem)
+			//如果没匹配到错误，直接返回
+			if len(result) == 0 {
+				continue
+			}
+			//把所有匹配到的日志进行拼接
+			var matchLogs string
+			for _, resultItem := range result {
+				matchLogs += resultItem + "\n"
+			}
+			//形成一个答案
+			ans := &QueryLogResp{
+				Id:        i,
+				Question:  matchLogs,
+				Answer:    rule.Answer,
+				Principal: rule.Principal,
+			}
+			if rule.Principal == dataRule.Other {
+				resp.Flag = true
+			}
+			i++
+			logItem.Ans = append(logItem.Ans, *ans)
+			deployLogRecordList.Logs = append(deployLogRecordList.Logs, *logItem)
+
+			anysisRes += rule.Answer + "\n"
+		}
+		resp.DeployLogRecordList = *deployLogRecordList
+		resp.AnysisRes = anysisRes
+		data = resp
 	})
 
-	v1.POST("remove", func(context *gin.Context) {
+	v1.POST("corpus/remove", func(context *gin.Context) {
 		var (
 			data interface{}
 			err  error
@@ -282,7 +337,29 @@ func bindRounter(router *gin.Engine) {
 
 	})
 
-	v1.POST("add/requirement", func(context *gin.Context) {
+	v1.POST("modify/corpus", func(context *gin.Context) {
+		var (
+			data interface{}
+			err  error
+		)
+		defer HandlerResult(context, &data, &err)
+		var corpus bot.Corpus
+		var chatbot *bot.ChatBot
+		if chatbot, _ = factory.GetChatBot(*project); chatbot == nil {
+			err = fmt.Errorf("project '%s' not found", *project)
+			return
+		}
+		err = context.Bind(&corpus)
+		if err != nil {
+			return
+		}
+		err = chatbot.ModifyCorpusToDB(corpus.Id, corpus.Question, corpus.Answer)
+		if err != nil {
+			return
+		}
+	})
+
+	v1.POST("requirement/add", func(context *gin.Context) {
 		var (
 			data interface{}
 			err  error
@@ -290,14 +367,14 @@ func bindRounter(router *gin.Engine) {
 		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		context.Bind(&corpus)
-		if len(corpus.Question) < 45 {
+		if len(corpus.Question) < 15 {
 			err = fmt.Errorf("标题于简单，不少于15个汉字！！！")
 			return
 		}
-		if len(corpus.Answer) < 120 {
-			err = fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
-			return
-		}
+		// if len(corpus.Answer) < 120 {
+		// 	err = fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
+		// 	return
+		// }
 		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
 		project := corpus.Project
 		var chatbot *bot.ChatBot
@@ -312,18 +389,31 @@ func bindRounter(router *gin.Engine) {
 		}
 	})
 
-	v1.POST("jira", func(ctx *gin.Context) {
+	v1.GET("/requirement/list", func(context *gin.Context) {
+		corpusList := factory.GetCorpusList(bot.CORPUS_REQUIREMENT)
+
+		context.JSON(200, JsonResult{
+			Code: 0,
+			Msg:  "success",
+			Data: corpusList,
+		})
+	})
+
+	v1.POST("/requirement/jira", func(ctx *gin.Context) {
 		var (
 			data interface{}
 			err  error
 		)
 		defer HandlerResult(ctx, &data, &err)
-		var board BoardJiraReq
+		var board bot.BoardJiraReq
 		err = ctx.Bind(&board)
 		if err != nil {
 			return
 		}
-		factory.RequirementJira(board.Board, board.Id)
+		err = factory.RequirementJira(board)
+		if err != nil {
+			return
+		}
 	})
 
 	v1.POST("feedback", func(context *gin.Context) {
@@ -369,7 +459,7 @@ func main() {
 	box := packr.NewBox("./static")
 	_ = box
 	//router.StaticFS("/static", http.FileSystem(box))
-	router.StaticFS("/static", http.Dir("./static"))
+	router.StaticFS("/static", http.Dir("/Users/zipeng.li/go/src/chatbot/static"))
 	bindRounter(router)
 	router.Run(*bind)
 }
