@@ -28,3 +28,6 @@ data
 **/*.yml
 **/*.gob
 **/stopwords.txt
+
+**/chatbot.db
+chatbot.db
