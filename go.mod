@@ -3,6 +3,7 @@ module github.com/kevwan/chatbot
 go 1.15
 
 require (
+	git.garena.com/shopee/bg-logistics/go/gocommon v0.3.7
 	git.garena.com/shopee/bg-logistics/qa/dms-jagent v0.1.124
 	github.com/andygrunwald/go-jira v1.14.0
 	github.com/gin-contrib/cors v1.3.1

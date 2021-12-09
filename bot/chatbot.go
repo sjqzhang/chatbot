@@ -76,10 +76,10 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			panic(err)
 		}
-		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
-		if err != nil {
-			log.Error(err)
-		}
+		// err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
+		// if err != nil {
+		// 	log.Error(err)
+		// }
 
 	}
 	projects := make([]Project, 0)
@@ -156,52 +156,66 @@ func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
 	return corpuses
 }
 
-func (f *ChatBotFactory) RequirementJira(board string, id int) {
+func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
+	var pConf ProjectConf
+	var project = &Project{
+		Name: "DMS",
+	}
+	ok, err := engine.Get(project)
+	if !ok || err != nil {
+		return err
+	}
 
-	var conf JiraConf
-	jiraClient, err := NewJiraOperation(conf.Base, &jira.BasicAuthTransport{
-		Username: conf.UserName,
-		Password: encrypt.AESDecrypt(conf.Password, conf.SecretKey),
+	err = json.Unmarshal([]byte(project.Config), &pConf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
+		Username: pConf.JiraConf.UserName,
+		Password: encrypt.AESDecrypt(pConf.JiraConf.Password, pConf.JiraConf.SecretKey),
 	})
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
-	projects, _, err := jiraClient.Project.GetList()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	var projectId string
-	for _, project := range *projects {
-		if project.Name == board {
-			projectId = project.ID
-		}
-	}
-	_, _, err = jiraClient.Issue.Create(&jira.Issue{
+	// projects, _, err := jiraClient.Issue.Create()
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return err
+	// }
+	// var projectId string
+	// for _, project := range *projects {
+	// 	if project.Name == board.Board {
+	// 		projectId = project.ID
+	// 	}
+	// }
+	is, _, err := jiraClient.Issue.Create(&jira.Issue{
 		Fields: &jira.IssueFields{
-			Type:        jira.IssueType{},
-			Project:     jira.Project{ID: projectId},
-			Created:     jira.Time{},
-			Duedate:     jira.Date{},
-			Assignee:    &jira.User{},
-			Description: "",
-			Summary:     "",
-			Creator:     &jira.User{},
-			Reporter:    &jira.User{},
+			Project:     jira.Project{ID: "12902", Key: "SPCICD"},
+			Assignee:    &jira.User{Name: board.Assignee},
+			Description: board.Description,
+			Summary:     board.Summary,
 		},
 	})
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
-	corpus := &Corpus{Id: id}
+	corpus := &Corpus{Id: board.Id}
 	err = engine.Find(corpus)
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
-	return
+	corpus.Answer = is.Key
+	_, err = engine.ID(board.Id).Update(&corpus)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
 }
 
 var engine *xorm.Engine
@@ -286,10 +300,24 @@ type Config struct {
 }
 
 type JiraConf struct {
-	Base      string
-	UserName  string
-	Password  string
-	SecretKey string
+	Base      string `json:"base"`
+	UserName  string `json:"username"`
+	Password  string `json:"password"`
+	SecretKey string `json:"secretkey"`
+}
+
+type ProjectConf struct {
+	Board    string   `json:"board"`
+	JiraConf JiraConf `json:"jira_conf"`
+}
+
+type BoardJiraReq struct {
+	Board       string `json:"board"`
+	Description string `json:"description" gorm:"column:description"`
+	FixVersion  string `json:"fixVersions" gorm:"column:fixVersions"`
+	Assignee    string `json:"assignee" gorm:"column:assignee"`
+	Summary     string `json:"summary" gorm:"column:summary"`
+	Id          int    `json:"id"`
 }
 
 func (chatbot *ChatBot) Train(data interface{}) error {
@@ -443,6 +471,19 @@ func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 			_, err = engine.Update(corpus, &Corpus{Id: q.Id})
 			return err
 		}
+	}
+	return nil
+}
+
+func (chatbot *ChatBot) ModifyCorpusToDB(id int, ques string, ans string) error {
+	q := Corpus{
+		Id:       id,
+		Question: ques,
+		Answer:   ans,
+	}
+	_, err := engine.Update(&q)
+	if err != nil {
+		return err
 	}
 	return nil
 }

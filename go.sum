@@ -27,6 +27,7 @@ git.garena.com/shopee/bg-logistics/go/agollo v0.0.9/go.mod h1:v8QsDA2QO95t6BOeGg
 git.garena.com/shopee/bg-logistics/go/configmr v0.1.0-alpha.1.2/go.mod h1:qpcg++SPBqYIpUDeNPjva3sG99WUwAY9fS16i3fX4Hw=
 git.garena.com/shopee/bg-logistics/go/gocommon v0.3.6/go.mod h1:2VHdABgcxbA+mNkcdYOtTqIhPKwALFIiv3UuiC1AYF4=
 git.garena.com/shopee/bg-logistics/go/gocommon v0.3.7-alpha.16/go.mod h1:Wa69txEFMsuyMCz6ZsPSuspGcRV6k6GbwLDY2vaO500=
+git.garena.com/shopee/bg-logistics/go/gocommon v0.3.7 h1:jRCuIzNSvojfWoF6YDgp2CYEl/KbDHwwhcRKnqxN9vA=
 git.garena.com/shopee/bg-logistics/go/gocommon v0.3.7/go.mod h1:GjYHv/KNYWZr3jqF798q8BRLb0CuWOyYYurjrxJLOQc=
 git.garena.com/shopee/bg-logistics/go/scorm v0.0.18/go.mod h1:dtKBKGrTJnjITyhBMx8WfVZQriC5A0QK2Llx1LdoVK8=
 git.garena.com/shopee/bg-logistics/qa/dms-jagent v0.1.124 h1:UXfBvgQCb2/LXr21aPBrVjeU/DI6+YLAxpPYEJfWSoA=
@@ -581,6 +582,7 @@ github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24/go.mod h1:M+9Nz
 github.com/shurcooL/go v0.0.0-20180423040247-9e1955d9fb6e/go.mod h1:TDJrrUr11Vxrven61rcy3hJMUqaf/CLWYhHNPmT14Lk=
 github.com/shurcooL/go-goon v0.0.0-20170922171312-37c2f522c041/go.mod h1:N5mDOmsrJOB+vfqUK+7DmDyjhSLIIBnXo9lvZJj3MWQ=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
+github.com/sillyousu/goid v0.0.0-20170828045124-4c1c17f636f6 h1:bkQV4mLiDi40kubQWOye62gFRoO3ClITzZBS7+uW8Y8=
 github.com/sillyousu/goid v0.0.0-20170828045124-4c1c17f636f6/go.mod h1:1U0xNovm34RRhorm4bYmIssobgLZ2+N6Iuh5JLFsSmY=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
