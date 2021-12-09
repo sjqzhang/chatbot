@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"git.garena.com/shopee/bg-logistics/qa/dms-jagent/utils/encrypt"
 	"github.com/andygrunwald/go-jira"
 	"github.com/go-xorm/xorm"
 	"github.com/kevwan/chatbot/bot/corpus"
@@ -174,7 +173,7 @@ func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
 
 	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
 		Username: pConf.JiraConf.UserName,
-		Password: encrypt.AESDecrypt(pConf.JiraConf.Password, pConf.JiraConf.SecretKey),
+		//Password: encrypt.AESDecrypt(pConf.JiraConf.Password, pConf.JiraConf.SecretKey),
 	})
 	if err != nil {
 		log.Error(err)
