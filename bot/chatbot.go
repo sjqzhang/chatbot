@@ -4,21 +4,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-xorm/xorm"
-	"github.com/kevwan/chatbot/bot/corpus"
-	"github.com/prometheus/common/log"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
+	"git.garena.com/shopee/bg-logistics/qa/dms-jagent/utils/encrypt"
+	"github.com/andygrunwald/go-jira"
+	"github.com/go-xorm/xorm"
+	"github.com/kevwan/chatbot/bot/corpus"
+	"github.com/prometheus/common/log"
+
+	"runtime"
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
 	"github.com/kevwan/chatbot/bot/adapters/storage"
 	_ "github.com/mattn/go-sqlite3"
-	"runtime"
-	"time"
 )
+
+func NewJiraOperation(base string, tp *jira.BasicAuthTransport) (j *jira.Client, err error) {
+	jiraClient, err := jira.NewClient(tp.Client(), base)
+	if err != nil {
+		return
+	}
+	return jiraClient, nil
+}
 
 const mega = 1024 * 1024
 
@@ -37,6 +49,7 @@ type CORPUS_TYPE int
 const (
 	CORPUS_CORPUS      CORPUS_TYPE = 1
 	CORPUS_REQUIREMENT CORPUS_TYPE = 2
+	CORPUS_RULES       CORPUS_TYPE = 3
 )
 
 type ChatBotFactory struct {
@@ -63,10 +76,10 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			panic(err)
 		}
-		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
-		if err != nil {
-			log.Error(err)
-		}
+		// err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
+		// if err != nil {
+		// 	log.Error(err)
+		// }
 
 	}
 	projects := make([]Project, 0)
@@ -134,6 +147,77 @@ func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpu
 	return corpuses
 }
 
+func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
+	var corpuses []Corpus
+	err := engine.Where("qtype == ?", qusType).Find(&corpuses)
+	if err != nil {
+		log.Error(err)
+	}
+	return corpuses
+}
+
+func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
+	var pConf ProjectConf
+	var project = &Project{
+		Name: "DMS",
+	}
+	ok, err := engine.Get(project)
+	if !ok || err != nil {
+		return err
+	}
+
+	err = json.Unmarshal([]byte(project.Config), &pConf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
+		Username: pConf.JiraConf.UserName,
+		Password: encrypt.AESDecrypt(pConf.JiraConf.Password, pConf.JiraConf.SecretKey),
+	})
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	// projects, _, err := jiraClient.Issue.Create()
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return err
+	// }
+	// var projectId string
+	// for _, project := range *projects {
+	// 	if project.Name == board.Board {
+	// 		projectId = project.ID
+	// 	}
+	// }
+	is, _, err := jiraClient.Issue.Create(&jira.Issue{
+		Fields: &jira.IssueFields{
+			Project:     jira.Project{ID: "12902", Key: "SPCICD"},
+			Assignee:    &jira.User{Name: board.Assignee},
+			Description: board.Description,
+			Summary:     board.Summary,
+		},
+	})
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	corpus := &Corpus{Id: board.Id}
+	err = engine.Find(corpus)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	corpus.Answer = is.Key
+	_, err = engine.ID(board.Id).Update(&corpus)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
 var engine *xorm.Engine
 
 func (chatbot *ChatBot) Init() {
@@ -180,7 +264,7 @@ type Corpus struct {
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Feedback struct {
@@ -197,7 +281,7 @@ type Feedback struct {
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
 	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
 	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答')"`
+	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Project struct {
@@ -213,6 +297,27 @@ type Config struct {
 	Project    string `json:"project"`
 	DirCorpus  string `json:"dir_corpus"`
 	StoreFile  string `json:"store_file"`
+}
+
+type JiraConf struct {
+	Base      string `json:"base"`
+	UserName  string `json:"username"`
+	Password  string `json:"password"`
+	SecretKey string `json:"secretkey"`
+}
+
+type ProjectConf struct {
+	Board    string   `json:"board"`
+	JiraConf JiraConf `json:"jira_conf"`
+}
+
+type BoardJiraReq struct {
+	Board       string `json:"board"`
+	Description string `json:"description" gorm:"column:description"`
+	FixVersion  string `json:"fixVersions" gorm:"column:fixVersions"`
+	Assignee    string `json:"assignee" gorm:"column:assignee"`
+	Summary     string `json:"summary" gorm:"column:summary"`
+	Id          int    `json:"id"`
 }
 
 func (chatbot *ChatBot) Train(data interface{}) error {
@@ -366,6 +471,19 @@ func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 			_, err = engine.Update(corpus, &Corpus{Id: q.Id})
 			return err
 		}
+	}
+	return nil
+}
+
+func (chatbot *ChatBot) ModifyCorpusToDB(id int, ques string, ans string) error {
+	q := Corpus{
+		Id:       id,
+		Question: ques,
+		Answer:   ans,
+	}
+	_, err := engine.Update(&q)
+	if err != nil {
+		return err
 	}
 	return nil
 }
