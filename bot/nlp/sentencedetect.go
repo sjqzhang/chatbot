@@ -22,9 +22,9 @@ var (
 
 func IsQuestion(sentence string) bool {
 	// we don't check whether question or not in English
-	if isAscii(sentence) {
-		return false
-	}
+	//if isAscii(sentence) {
+	//	return false
+	//}
 
 	chars := []rune(strings.TrimSpace(sentence))
 	if len(chars) == 0 {
