@@ -24,7 +24,7 @@ var (
 	dir     = flag.String("d", "/Users/dev/repo/chatterbot-corpus/chatterbot_corpus/data/chinese", "the directory to look for corpora files")
 	//sqliteDB = flag.String("sqlite3", "/Users/junqiang.zhang/repo/go/chatbot/chatbot.db", "the file path of the corpus sqlite3")
 	driver        = flag.String("driver", "sqlite3", "db driver")
-	datasource    = flag.String("datasource", "/Users/zipeng.li/go/src/chatbot/chatbot.db", "datasource connection")
+	datasource    = flag.String("datasource", "./chatbot.db", "datasource connection")
 	bind          = flag.String("b", ":8080", "bind addr")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
@@ -459,7 +459,7 @@ func main() {
 	box := packr.NewBox("./static")
 	_ = box
 	//router.StaticFS("/static", http.FileSystem(box))
-	router.StaticFS("/static", http.Dir("/Users/zipeng.li/go/src/chatbot/static"))
+	router.StaticFS("/static", http.Dir("./static"))
 	bindRounter(router)
 	router.Run(*bind)
 }

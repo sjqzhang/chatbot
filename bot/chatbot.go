@@ -75,10 +75,10 @@ func (f *ChatBotFactory) Init() {
 		if err != nil {
 			panic(err)
 		}
-		// err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
-		// if err != nil {
-		// 	log.Error(err)
-		// }
+		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
+		if err != nil {
+			log.Error(err)
+		}
 
 	}
 	projects := make([]Project, 0)
@@ -172,8 +172,8 @@ func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
 	}
 
 	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
-		Username: pConf.JiraConf.UserName,
-		//Password: encrypt.AESDecrypt(pConf.JiraConf.Password, pConf.JiraConf.SecretKey),
+		Username: "",
+		Password: "",
 	})
 	if err != nil {
 		log.Error(err)
