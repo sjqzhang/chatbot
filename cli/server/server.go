@@ -179,10 +179,15 @@ func bindRounter(router *gin.Engine) {
 		)
 		defer HandlerResult(context, &data, &err)
 		qusString := context.Query("qus_type")
-		qusType, err := strconv.Atoi(qusString)
-		if err != nil {
-			err = fmt.Errorf("qus_type '%s' atoi err:'%s'", qusString, err)
-			return
+		var qusType int
+		if len(qusString) == 0 {
+			qusType = 1
+		} else {
+			qusType, err = strconv.Atoi(qusString)
+			if err != nil {
+				err = fmt.Errorf("qus_type '%s' atoi err:'%s'", qusString, err)
+				return
+			}
 		}
 		q := context.Query("q")
 		if qusType == int(bot.CORPUS_CORPUS) {
