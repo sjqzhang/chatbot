@@ -14,6 +14,7 @@ import (
 	"github.com/gobuffalo/packr"
 	"github.com/kevwan/chatbot/bot"
 	"github.com/kevwan/chatbot/bot/adapters/logic"
+	"github.com/prometheus/common/log"
 )
 
 var factory *bot.ChatBotFactory
@@ -67,6 +68,7 @@ type DeployLogRecordItem struct {
 
 type QueryLogResp struct {
 	Id        int    `json:"id"`
+	MatchRule string `json:"match_rule"`
 	Question  string `json:"question"`
 	Answer    string `json:"answer"`
 	Principal string `json:"principal"`
@@ -244,6 +246,7 @@ func bindRounter(router *gin.Engine) {
 		dataRule.Data = context.Query("data")
 		dataRule.Other = context.Query("other")
 		if err != nil {
+			log.Error(err)
 			return
 		}
 		corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
@@ -254,6 +257,7 @@ func bindRounter(router *gin.Engine) {
 		for _, rule := range corpuses {
 			reg, err := regexp.Compile("(?i)" + rule.Question)
 			if err != nil {
+				log.Error(err)
 				return
 			}
 			if reg == nil {
@@ -273,6 +277,7 @@ func bindRounter(router *gin.Engine) {
 			//形成一个答案
 			ans := &QueryLogResp{
 				Id:        i,
+				MatchRule: rule.Question,
 				Question:  matchLogs,
 				Answer:    rule.Answer,
 				Principal: rule.Principal,

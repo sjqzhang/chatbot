@@ -148,7 +148,7 @@ func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpu
 
 func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
 	var corpuses []Corpus
-	err := engine.Where("qtype == ?", qusType).Find(&corpuses)
+	err := engine.Where("qtype = ?", int(qusType)).Find(&corpuses)
 	if err != nil {
 		log.Error(err)
 	}
