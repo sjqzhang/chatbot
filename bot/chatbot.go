@@ -256,13 +256,15 @@ type Corpus struct {
 	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
 	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
 	Answer      string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	Sample      string    `json:"sample" form:"sample" xorm:"text notnull  'sample' comment('样本')"`
 	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
 	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
-	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
-	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	CreatedAt   time.Time `json:"create_at" xorm:"create_at created" json:"create_at" description:"创建时间"`
+	UpdatedAt   time.Time `json:"update_at" xorm:"update_at updated"json:"update_at"description:"更新时间"`
+	DeletedAt   time.Time `xorm:"delete_at" json:"delete_at" description:"删除时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
@@ -278,15 +280,20 @@ type Feedback struct {
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
-	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
-	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	CreatedAt   time.Time `json:"create_at" xorm:"create_at created" json:"create_at" description:"创建时间"`
+	UpdatedAt   time.Time `json:"update_at" xorm:"update_at updated"json:"update_at"description:"更新时间"`
+	DeletedAt   time.Time `xorm:"delete_at" json:"delete_at" description:"删除时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Project struct {
-	Id     int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Name   string `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
-	Config string `json:"config" form:"config"  xorm:"text notnull 'config' comment('配置')"`
+	Id        int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Name      string    `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
+	Config    string    `json:"config" form:"config"  xorm:"text notnull 'config' comment('配置')"`
+	Status    int       `json:"status" form:"status"  xorm:"int notnull default 1 'status' comment('状态')"`
+	CreatedAt time.Time `json:"create_at" xorm:"create_at created" json:"create_at" description:"创建时间"`
+	UpdatedAt time.Time `json:"update_at" xorm:"update_at updated"json:"update_at"description:"更新时间"`
+	DeletedAt time.Time `xorm:"delete_at" json:"delete_at" description:"删除时间"`
 	//Config Config
 }
 
