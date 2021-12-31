@@ -171,7 +171,7 @@ func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
 		return err
 	}
 
-	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
+	jiraClient, err := NewJiraOperation(pConf.JiraConf.BaseUrl, &jira.BasicAuthTransport{
 		Username: "",
 		Password: "",
 	})
@@ -306,15 +306,20 @@ type Config struct {
 }
 
 type JiraConf struct {
-	Base      string `json:"base"`
+	BaseUrl   string `json:"base_url"`
 	UserName  string `json:"username"`
 	Password  string `json:"password"`
 	SecretKey string `json:"secretkey"`
+	Board     string `json:"board"`
 }
 
 type ProjectConf struct {
-	Board    string   `json:"board"`
 	JiraConf JiraConf `json:"jira_conf"`
+	Users    []string `json:"users"`
+	Class    []string `json:"class"`
+	Name     string   `json:"name"`
+	Id       *int     `json:"id"`
+	Status   *int     `json:"status"`
 }
 
 type BoardJiraReq struct {
