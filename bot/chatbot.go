@@ -57,6 +57,11 @@ type ChatBotFactory struct {
 	config   Config
 }
 
+type ChatBotUpdate struct {
+	ChatBot    ChatBot
+	UpdateTime int
+}
+
 //var chatBotFactory *ChatBotFactory
 
 func NewChatBotFactory(config Config) *ChatBotFactory {
@@ -103,7 +108,6 @@ func (f *ChatBotFactory) Init() {
 			chatbot.Init()
 		}
 	}
-
 }
 
 func (f *ChatBotFactory) Refresh() {
@@ -114,6 +118,10 @@ func (f *ChatBotFactory) GetChatBot(project string) (*ChatBot, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	chatBot, ok := f.chatBots[project]
+	// if chatBotUpdate == nil {
+	// 	return nil, ok
+	// }
+	// return &chatBotUpdate.ChatBot, ok
 	return chatBot, ok
 }
 
@@ -121,6 +129,8 @@ func (f *ChatBotFactory) AddChatBot(project string, chatBot *ChatBot) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.chatBots[project]; !ok {
+		// var ChatBotUpdate = new(ChatBotUpdate)
+		// ChatBotUpdate.ChatBot = *chatBot
 		f.chatBots[project] = chatBot
 	}
 
@@ -179,17 +189,6 @@ func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
 		log.Error(err)
 		return err
 	}
-	// projects, _, err := jiraClient.Issue.Create()
-	// if err != nil {
-	// 	log.Error(err)
-	// 	return err
-	// }
-	// var projectId string
-	// for _, project := range *projects {
-	// 	if project.Name == board.Board {
-	// 		projectId = project.ID
-	// 	}
-	// }
 	is, _, err := jiraClient.Issue.Create(&jira.Issue{
 		Fields: &jira.IssueFields{
 			Project:     jira.Project{ID: "12902", Key: "SPCICD"},
@@ -247,6 +246,30 @@ func (chatbot *ChatBot) Init() {
 	log.Error(err)
 	if err != nil {
 		panic(err)
+	}
+
+	go chatbot.syncCorpus()
+
+}
+
+func (chatbot *ChatBot) syncCorpus() {
+	for {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("Runtime panic caught: %v\n", err)
+			}
+		}()
+
+
+		time.Sleep(time.Second * 10)
+		corpuses, err := chatbot.LoadCorpusFromDB()
+		if err != nil {
+			log.Error(err)
+		}
+
+		if err := chatbot.Trainer.TrainWithCorpus(corpuses); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
@@ -546,7 +569,6 @@ func (chatbot *ChatBot) TrainWithDB() error {
 		return nil
 		//return chatbot.StorageAdapter.Sync()
 	}
-
 }
 
 func (chatbot *ChatBot) FindCorporaFiles(dir string) []string {
