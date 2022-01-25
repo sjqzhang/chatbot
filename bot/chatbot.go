@@ -51,6 +51,10 @@ const (
 	CORPUS_RULES       CORPUS_TYPE = 3
 )
 
+func (c CORPUS_TYPE) Int() int {
+	return int(c)
+}
+
 type ChatBotFactory struct {
 	mu       sync.Mutex
 	chatBots map[string]*ChatBot
@@ -154,6 +158,114 @@ func (f *ChatBotFactory) ListCorpus(corpus Corpus, start int, limit int) []Corpu
 		log.Error(err)
 	}
 	return corpuses
+}
+
+type CorpusResp struct {
+	Id              int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class           string `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project         string `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question        string `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer          string `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	Sample          string `json:"sample" form:"sample" xorm:"text notnull  'sample' comment('样本')"`
+	Creator         string `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
+	Principal       string `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser         string `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount     int    `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount     int    `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
+	CreatedAt       int    `json:"created_at" xorm:"created_at created" description:"创建时间"`
+	UpdatedAt       int    `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
+	DeletedAt       int    `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
+	Qtype           int    `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	RequirementType int    `json:"requirement_type" xorm:"requirement_type"`
+	QuesState       int    `json:"ques_state" xorm:"ques_state"`
+	Resp            string `json:"resp" xorm:"resp"`
+}
+
+func (f *ChatBotFactory) GetRequirementList(project string, user string, qtype int) (corpusListResp []*CorpusResp) {
+	corpusList := make([]*Corpus, 0)
+	corpusListResp = make([]*CorpusResp, 0)
+	var querys []string
+	var args []interface{}
+	if len(project) != 0 {
+		querys = append(querys, "project = ?")
+		args = append(args, project)
+	}
+	if user != "" {
+		user += "@shopee.com"
+		querys = append(querys, "creator = ?")
+		args = append(args, user)
+	}
+	if qtype == CORPUS_CORPUS.Int() {
+		if qtype == CORPUS_CORPUS.Int() {
+			querys = append(querys, "qtype = ?")
+			args = append(args, CORPUS_CORPUS.Int())
+			querys = append(querys, "ques_state = ?")
+			args = append(args, QuesReceive)
+		}
+		err := engine.Where(strings.Join(querys, " AND "), args...).OrderBy("id desc").Find(&corpusList)
+		if err != nil {
+			log.Error(err)
+		}
+	} else if qtype == CORPUS_REQUIREMENT.Int() {
+		if qtype == CORPUS_REQUIREMENT.Int() {
+			querys = append(querys, "qtype = ?")
+			args = append(args, CORPUS_REQUIREMENT.Int())
+		}
+		err := engine.Where(strings.Join(querys, " AND "), args...).OrderBy("id desc").Find(&corpusList)
+		if err != nil {
+			log.Error(err)
+		}
+	} else if qtype == 0 {
+		var queryQues []string
+		var argsQues []interface{}
+		queryQues = append(queryQues, querys...)
+		argsQues = append(argsQues, args...)
+		queryQues = append(queryQues, "qtype = ?")
+		argsQues = append(argsQues, CORPUS_CORPUS.Int())
+		queryQues = append(queryQues, "ques_state >= ?")
+		argsQues = append(argsQues, QuesReceive)
+		err := engine.Where(strings.Join(queryQues, " AND "), argsQues...).OrderBy("id desc").Find(&corpusList)
+		if err != nil {
+			log.Error(err)
+		}
+		var queryRequire []string
+		var argsRequire []interface{}
+		queryRequire = append(queryRequire, querys...)
+		argsRequire = append(argsRequire, args...)
+		queryRequire = append(queryRequire, "qtype = ?")
+		argsRequire = append(argsRequire, CORPUS_REQUIREMENT.Int())
+		var corpusListRequirement = make([]*Corpus, 0)
+		err = engine.Where(strings.Join(queryRequire, " AND "), argsRequire...).OrderBy("id desc").Find(&corpusListRequirement)
+		if err != nil {
+			log.Error(err)
+		}
+		corpusList = append(corpusList, corpusListRequirement...)
+	}
+
+	for _, corpusItem := range corpusList {
+		corpusListResp = append(corpusListResp, &CorpusResp{
+			Id:              corpusItem.Id,
+			Class:           corpusItem.Class,
+			Project:         project,
+			Question:        corpusItem.Question,
+			Answer:          corpusItem.Answer,
+			Sample:          corpusItem.Sample,
+			Creator:         corpusItem.Creator,
+			Principal:       corpusItem.Principal,
+			Reviser:         corpusItem.Reviser,
+			AcceptCount:     corpusItem.AcceptCount,
+			RejectCount:     corpusItem.RejectCount,
+			CreatedAt:       int(corpusItem.CreatedAt.Unix()),
+			UpdatedAt:       int(corpusItem.UpdatedAt.Unix()),
+			DeletedAt:       int(corpusItem.DeletedAt.Unix()),
+			Qtype:           corpusItem.Qtype,
+			RequirementType: corpusItem.RequirementType,
+			QuesState:       corpusItem.QuesState,
+			Resp:            corpusItem.Resp,
+		})
+	}
+
+	return corpusListResp
 }
 
 func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
@@ -270,23 +382,29 @@ func (chatbot *ChatBot) syncCorpus() {
 		if err := chatbot.Trainer.TrainWithCorpus(corpuses); err != nil {
 			log.Error(err)
 		}
+
 	}
 }
 
 type Corpus struct {
-	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
-	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
-	Answer      string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
-	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
-	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
-	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
-	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
-	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
-	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	Id              int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class           string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project         string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question        string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer          string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	Sample          string    `json:"sample" form:"sample" xorm:"text notnull  'sample' comment('样本')"`
+	Creator         string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
+	Principal       string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser         string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount     int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount     int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
+	CreatedAt       time.Time `json:"created_at" xorm:"created_at created" description:"创建时间"`
+	UpdatedAt       time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
+	DeletedAt       time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
+	Qtype           int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	RequirementType int       `json:"requirement_type" xorm:"requirement_type"`
+	QuesState       int       `json:"ques_state" xorm:"ques_state"`
+	Resp            string    `json:"resp" xorm:"resp"`
 }
 
 type Feedback struct {
@@ -301,8 +419,9 @@ type Feedback struct {
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
-	CreatTime   time.Time `json:"creat_time" xorm:"creat_time created" json:"creat_time" description:"创建时间"`
-	UpdateTime  time.Time `json:"update_time" xorm:"update_time updated"json:"update_time"description:"更新时间"`
+	CreatedAt   time.Time `json:"created_at" xorm:"created_at created" json:"created_at" description:"创建时间"`
+	UpdatedAt   time.Time `json:"updated_at" xorm:"updated_at updated"json:"updated_at"description:"更新时间"`
+	DeletedAt   time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
@@ -371,8 +490,9 @@ func (chatbot *ChatBot) LoadCorpusFromDB() (map[string][][]string, error) {
 	results := make(map[string][][]string)
 	var rows []Corpus
 	query := Corpus{
-		Project: chatbot.Config.Project,
-		Qtype:   int(CORPUS_CORPUS),
+		Project:   chatbot.Config.Project,
+		Qtype:     CORPUS_CORPUS.Int(),
+		QuesState: QuesCustom.Int(),
 	}
 	err := engine.Find(&rows, &query)
 	if err != nil {
@@ -473,6 +593,31 @@ func (chatbot *ChatBotFactory) UpdateCorpusCounter(id int, isOk bool) error {
 
 }
 
+type RequirementType int
+
+const (
+	RequirementReceive  RequirementType = 1
+	RequirementReject   RequirementType = 2
+	RequirementHandle   RequirementType = 3
+	RequirementComplete RequirementType = 4
+)
+
+func (r RequirementType) Int() int {
+	return int(r)
+}
+
+type QuesState int
+
+const (
+	QuesCustom  QuesState = 1
+	QuesReceive QuesState = 2
+	QuesHandle  QuesState = 3
+)
+
+func (q QuesState) Int() int {
+	return int(q)
+}
+
 func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 	q := Corpus{
 		Question: corpus.Question,
@@ -485,6 +630,14 @@ func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 	}
 
 	if ok, err := engine.Get(&q); !ok {
+		if corpus.Qtype == int(CORPUS_REQUIREMENT) {
+			corpus.RequirementType = RequirementReceive.Int()
+		} else if corpus.Qtype == int(CORPUS_CORPUS) {
+			corpus.QuesState = QuesReceive.Int()
+		} else {
+			corpus.Qtype = int(CORPUS_REQUIREMENT)
+			corpus.RequirementType = RequirementReceive.Int()
+		}
 		_, err = engine.Insert(corpus)
 		return err
 	} else {
