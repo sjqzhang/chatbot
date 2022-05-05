@@ -176,9 +176,10 @@ type CorpusResp struct {
 	UpdatedAt       int    `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
 	DeletedAt       int    `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	Qtype           int    `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
-	RequirementType int    `json:"requirement_type" xorm:"requirement_type"`
+	RequirementType string `json:"requirement_type" xorm:"requirement_type"`
 	QuesState       int    `json:"ques_state" xorm:"ques_state"`
 	Resp            string `json:"resp" xorm:"resp"`
+	SubProject      string `json:"sub_project" xorm:"sub_project"`
 }
 
 func (f *ChatBotFactory) GetRequirementList(project string, user string, qtype int) (corpusListResp []*CorpusResp) {
@@ -372,7 +373,6 @@ func (chatbot *ChatBot) syncCorpus() {
 			}
 		}()
 
-
 		time.Sleep(time.Second * 10)
 		corpuses, err := chatbot.LoadCorpusFromDB()
 		if err != nil {
@@ -402,9 +402,10 @@ type Corpus struct {
 	UpdatedAt       time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
 	DeletedAt       time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	Qtype           int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
-	RequirementType int       `json:"requirement_type" xorm:"requirement_type"`
+	RequirementType string    `json:"requirement_type" xorm:"requirement_type"`
 	QuesState       int       `json:"ques_state" xorm:"ques_state"`
 	Resp            string    `json:"resp" xorm:"resp"`
+	SubProject      string    `json:"sub_project" xorm:"sub_project"`
 }
 
 type Feedback struct {
@@ -631,12 +632,12 @@ func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 
 	if ok, err := engine.Get(&q); !ok {
 		if corpus.Qtype == int(CORPUS_REQUIREMENT) {
-			corpus.RequirementType = RequirementReceive.Int()
+			corpus.RequirementType = "收到"
 		} else if corpus.Qtype == int(CORPUS_CORPUS) {
 			corpus.QuesState = QuesReceive.Int()
 		} else {
 			corpus.Qtype = int(CORPUS_REQUIREMENT)
-			corpus.RequirementType = RequirementReceive.Int()
+			corpus.RequirementType = "收到"
 		}
 		_, err = engine.Insert(corpus)
 		return err

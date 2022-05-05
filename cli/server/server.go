@@ -411,6 +411,9 @@ func bindRounter(router *gin.Engine) {
 		}
 		corpus.Question = strings.ToLower(corpus.Question)
 		corpus.Creator += "@shopee.com"
+		if len(corpus.SubProject) == 0 {
+			corpus.SubProject = corpus.Project
+		}
 		err = chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
 			return
