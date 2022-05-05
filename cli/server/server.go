@@ -56,6 +56,24 @@ type ruleDataReq struct {
 	Other string `json:"other"`
 }
 
+type RequirementListReq struct {
+	Project string `json:"project"`
+	User    string `json:"user"`
+	Qtype   int    `json:"qtype"`
+}
+
+type RequirementListRespItem struct {
+	RequirementDesc  string `json:"requirement_desc"`
+	Sample           string `json:"sample"`
+	RequirementType  int    `json:"requirement_type"`
+	RequirementTitle string `json:"requirement_title"`
+	Ctime            string `json:"ctime"`
+}
+
+type RequirementListResp struct {
+	List []RequirementListRespItem `json:"list"`
+}
+
 type ModifyCorpus struct {
 	Id       int    `json:"id"`
 	Question string `json:"question"`
@@ -377,15 +395,14 @@ func bindRounter(router *gin.Engine) {
 		defer HandlerResult(context, &data, &err)
 		var corpus bot.Corpus
 		context.Bind(&corpus)
-		if len(corpus.Question) < 15 {
-			err = fmt.Errorf("标题于简单，不少于15个汉字！！！")
+		if len(corpus.Question) < 10 {
+			err = fmt.Errorf("标题于简单，不少于10个汉字！！！")
 			return
 		}
 		// if len(corpus.Answer) < 120 {
 		// 	err = fmt.Errorf("问题描述过于简单，不少于40个汉字！！！")
 		// 	return
 		// }
-		corpus.Qtype = int(bot.CORPUS_REQUIREMENT)
 		project := corpus.Project
 		var chatbot *bot.ChatBot
 		if chatbot, _ = factory.GetChatBot(project); chatbot == nil {
@@ -393,37 +410,26 @@ func bindRounter(router *gin.Engine) {
 			return
 		}
 		corpus.Question = strings.ToLower(corpus.Question)
+		corpus.Creator += "@shopee.com"
+		if len(corpus.SubProject) == 0 {
+			corpus.SubProject = corpus.Project
+		}
 		err = chatbot.AddCorpusToDB(&corpus)
 		if err != nil {
 			return
 		}
 	})
 
-	v1.GET("/requirement/list", func(context *gin.Context) {
-		corpusList := factory.GetCorpusList(bot.CORPUS_REQUIREMENT)
+	v1.POST("requirement/list", func(context *gin.Context) {
+		var requirementReq RequirementListReq
+		context.Bind(&requirementReq)
 
+		corpusList := factory.GetRequirementList(requirementReq.Project, requirementReq.User, requirementReq.Qtype)
 		context.JSON(200, JsonResult{
 			Code: 0,
 			Msg:  "success",
 			Data: corpusList,
 		})
-	})
-
-	v1.POST("/requirement/jira", func(ctx *gin.Context) {
-		var (
-			data interface{}
-			err  error
-		)
-		defer HandlerResult(ctx, &data, &err)
-		var board bot.BoardJiraReq
-		err = ctx.Bind(&board)
-		if err != nil {
-			return
-		}
-		err = factory.RequirementJira(board)
-		if err != nil {
-			return
-		}
 	})
 
 	v1.POST("feedback", func(context *gin.Context) {
