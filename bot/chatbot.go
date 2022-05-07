@@ -360,9 +360,9 @@ type Feedback struct {
 	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
 	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
 	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
-	CreatedAt   time.Time `json:"created_at" xorm:"created_at created" json:"created_at" description:"创建时间"`
-	UpdatedAt   time.Time `json:"updated_at" xorm:"updated_at updated"json:"updated_at"description:"更新时间"`
-	DeletedAt   time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
+	CreateTime   time.Time `json:"create_time" xorm:"create_time" description:"创建时间"`
+	UpdateTime   time.Time `json:"update_time" xorm:"update_time" description:"更新时间"`
+	//DeletedAt   time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
