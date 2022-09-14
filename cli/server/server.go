@@ -254,15 +254,16 @@ func bindRounter(router *gin.Engine) {
 		}
 	})
 
-	v1.GET("rule", func(context *gin.Context) {
+	v1.POST("rule", func(context *gin.Context) {
 		var (
 			data interface{}
 			err  error
 		)
 		defer HandlerResult(context, &data, &err)
 		var dataRule ruleDataReq
-		dataRule.Data = context.Query("data")
-		dataRule.Other = context.Query("other")
+		//dataRule.Data = context.Query("data")
+		//dataRule.Other = context.Query("other")
+		context.Bind(&dataRule)
 		if err != nil {
 			log.Error(err)
 			return

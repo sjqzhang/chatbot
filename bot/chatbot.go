@@ -90,6 +90,10 @@ func (f *ChatBotFactory) Init() {
 		}
 
 	}
+	//if err := engine.Ping(); err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
 	projects := make([]Project, 0)
 	err = engine.Find(&projects)
 	for _, project := range projects {
@@ -402,6 +406,7 @@ type Corpus struct {
 	UpdatedAt       time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
 	DeletedAt       time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	Qtype           int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	RequirementClass string `json:"requirement_class" xorm:"varchar(256) notnull requirement_class"`
 	RequirementType string    `json:"requirement_type" xorm:"requirement_type"`
 	QuesState       int       `json:"ques_state" xorm:"ques_state"`
 	Resp            string    `json:"resp" xorm:"resp"`
@@ -409,21 +414,21 @@ type Corpus struct {
 }
 
 type Feedback struct {
-	Id          int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Cid         int       `json:"cid" form:"cid" xorm:"int  notnull 'cid' comment('语料编号')"`
-	Class       string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
-	Project     string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question    string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
-	Answer      string    `json:"answer" form:"answer" xorm:"text notnull   'answer' comment('回答')"`
-	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
-	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
-	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
-	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int notnull default 0  'reject_count' comment('解决次数')"`
-	CreateTime   time.Time `json:"create_time" xorm:"create_time" description:"创建时间"`
-	UpdateTime   time.Time `json:"update_time" xorm:"update_time" description:"更新时间"`
+	Id          int       `json:"id" form:"id" xorm:"int pk autoincr 'id' comment('编号')"`
+	Cid         int       `json:"cid" form:"cid" xorm:"int 'cid' comment('语料编号')"`
+	Class       string    `json:"class" form:"class"  xorm:"varchar(255) 'class' comment('分类')"`
+	Project     string    `json:"project" form:"project" xorm:"varchar(255) 'project' comment('项目')"`
+	Question    string    `json:"question" form:"question"  xorm:"varchar(2048)  'question' comment('问题')"`
+	Answer      string    `json:"answer" form:"answer" xorm:"text 'answer' comment('回答')"`
+	Creator     string    `json:"creator" form:"creator" xorm:"varchar(256)  'creator' comment('创建人')"`
+	Principal   string    `json:"principal" form:"principal" xorm:"varchar(256)  'principal' comment('责负人')"`
+	Reviser     string    `json:"reviser" form:"reviser" xorm:"varchar(256) 'reviser' comment('修订人')"`
+	AcceptCount int       `json:"accept_count" form:"accept_count" xorm:"int default 0  'accept_count' comment('解决次数')"`
+	RejectCount int       `json:"reject_count" form:"reject_count" xorm:"int default 0  'reject_count' comment('解决次数')"`
+	CreatedAt   time.Time `json:"created_at" xorm:"created_at created" description:"创建时间"`
+	UpdatedAt   time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
 	//DeletedAt   time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
-	Qtype       int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	Qtype int `json:"qtype" form:"qtype" xorm:"int 'qtype' comment('类型，需求，问答, 规则')"`
 }
 
 type Project struct {
@@ -634,7 +639,9 @@ func (chatbot *ChatBot) AddCorpusToDB(corpus *Corpus) error {
 		if corpus.Qtype == int(CORPUS_REQUIREMENT) {
 			corpus.RequirementType = "收到"
 		} else if corpus.Qtype == int(CORPUS_CORPUS) {
-			corpus.QuesState = QuesReceive.Int()
+			corpus.Qtype = int(CORPUS_REQUIREMENT)
+			//corpus.QuesState = QuesReceive.Int()
+			corpus.RequirementType = "收到"
 		} else {
 			corpus.Qtype = int(CORPUS_REQUIREMENT)
 			corpus.RequirementType = "收到"
