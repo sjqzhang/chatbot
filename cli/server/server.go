@@ -149,13 +149,14 @@ func bindRounter(router *gin.Engine) {
 		}
 		return qas
 	}
-	router.GET("/api/smoke", func(context *gin.Context) {
+
+	v1 := router.Group("api/v1")
+	v1.GET("/smoke", func(context *gin.Context) {
 		context.JSON(200, JsonResult{
 			Msg:  "smoke success",
 			Code: 200,
 		})
 	})
-	v1 := router.Group("api/v1")
 	v1.POST("add", func(context *gin.Context) {
 		var (
 			data interface{}
