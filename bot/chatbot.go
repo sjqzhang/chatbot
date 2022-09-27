@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/andygrunwald/go-jira"
 	"github.com/go-xorm/xorm"
 	"github.com/kevwan/chatbot/bot/corpus"
 	"github.com/prometheus/common/log"
@@ -22,14 +21,6 @@ import (
 	"github.com/kevwan/chatbot/bot/adapters/storage"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-func NewJiraOperation(base string, tp *jira.BasicAuthTransport) (j *jira.Client, err error) {
-	jiraClient, err := jira.NewClient(tp.Client(), base)
-	if err != nil {
-		return
-	}
-	return jiraClient, nil
-}
 
 const mega = 1024 * 1024
 
@@ -282,57 +273,6 @@ func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
 	return corpuses
 }
 
-func (f *ChatBotFactory) RequirementJira(board BoardJiraReq) error {
-	var pConf ProjectConf
-	var project = &Project{
-		Name: "DMS",
-	}
-	ok, err := engine.Get(project)
-	if !ok || err != nil {
-		return err
-	}
-
-	err = json.Unmarshal([]byte(project.Config), &pConf)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	jiraClient, err := NewJiraOperation(pConf.JiraConf.Base, &jira.BasicAuthTransport{
-		Username: "",
-		Password: "",
-	})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	is, _, err := jiraClient.Issue.Create(&jira.Issue{
-		Fields: &jira.IssueFields{
-			Project:     jira.Project{ID: "12902", Key: "SPCICD"},
-			Assignee:    &jira.User{Name: board.Assignee},
-			Description: board.Description,
-			Summary:     board.Summary,
-		},
-	})
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	corpus := &Corpus{Id: board.Id}
-	err = engine.Find(corpus)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	corpus.Answer = is.Key
-	_, err = engine.ID(board.Id).Update(&corpus)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	return nil
-}
-
 var engine *xorm.Engine
 
 func (chatbot *ChatBot) Init() {
@@ -432,9 +372,13 @@ type Feedback struct {
 }
 
 type Project struct {
-	Id     int    `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Name   string `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
-	Config string `json:"config" form:"config"  xorm:"text notnull 'config' comment('配置')"`
+	Id        int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Name      string    `json:"name" form:"name"  xorm:"varchar(255) notnull 'name' comment('名称')"`
+	Config    string    `json:"config" form:"config"  xorm:"text notnull 'config' comment('配置')"`
+	Status    int       `json:"status" form:"status"  xorm:"int notnull default 1 'status' comment('状态')"`
+	CreatedAt time.Time `json:"created_at" xorm:"created_at created" json:"created_at" description:"创建时间"`
+	UpdatedAt time.Time `json:"updated_at" xorm:"updated_at updated"json:"updated_at"description:"更新时间"`
+	DeletedAt time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
 	//Config Config
 }
 
@@ -447,15 +391,20 @@ type Config struct {
 }
 
 type JiraConf struct {
-	Base      string `json:"base"`
+	BaseUrl   string `json:"base_url"`
 	UserName  string `json:"username"`
 	Password  string `json:"password"`
 	SecretKey string `json:"secretkey"`
+	Board     string `json:"board"`
 }
 
 type ProjectConf struct {
-	Board    string   `json:"board"`
 	JiraConf JiraConf `json:"jira_conf"`
+	Users    []string `json:"users"`
+	Class    []string `json:"class"`
+	Name     string   `json:"name"`
+	Id       *int     `json:"id"`
+	Status   *int     `json:"status"`
 }
 
 type BoardJiraReq struct {
