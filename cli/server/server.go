@@ -26,7 +26,7 @@ var (
 	//sqliteDB = flag.String("sqlite3", "/Users/junqiang.zhang/repo/go/chatbot/chatbot.db", "the file path of the corpus sqlite3")
 	driver        = flag.String("driver", "sqlite3", "db driver")
 	datasource    = flag.String("datasource", "./chatbot.db", "datasource connection")
-	bind          = flag.String("b", ":8080", "bind addr")
+	bind          = flag.String("b", ":8000", "bind addr")
 	project       = flag.String("project", "DMS", "the name of the project in sqlite3 db")
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
 	storeFile     = flag.String("o", "/Users/dev/repo/chatbot/corpus.gob", "the file to store corpora")
