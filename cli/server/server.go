@@ -52,8 +52,9 @@ type ResoveReq struct {
 }
 
 type ruleDataReq struct {
-	Data  string `json:"data"`
-	Other string `json:"other"`
+	Data        string `json:"data"`
+	Other       string `json:"other"`
+	NoHighlight bool   `json:"highlight"`
 }
 
 type RequirementListReq struct {
@@ -275,6 +276,12 @@ func bindRounter(router *gin.Engine) {
 			log.Error(err)
 			return
 		}
+		if !dataRule.NoHighlight {
+
+			data = highlightKeyWord(dataRule)
+
+			return
+		}
 		corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
 		i := 0
 		resp := &RuleResp{}
@@ -457,6 +464,71 @@ func bindRounter(router *gin.Engine) {
 		}
 	})
 
+}
+
+func highlightKeyWord(dataRule ruleDataReq) interface{} {
+	var data interface{}
+	corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
+	i := 0
+	resp := &RuleResp{}
+	var anysisRes string
+	var deployLogRecordList = new(DeployLogRecordList)
+	for _, rule := range corpuses {
+		preReg, err := regexp.Compile("\\?:[a-zA-Z0-9_/\\\\ \\-]+") //reg:?<color>[a-zA-Z0-9_/\\- ]
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+		colorString := preReg.FindAllString(rule.Question, -1)
+		for idx, colorStr := range colorString {
+			colorString[idx] = strings.ReplaceAll(colorStr, "?:", "") //\u001b[44;1m
+		}
+		reg, err := regexp.Compile("(?i)" + rule.Question)
+		if err != nil {
+			log.Error(err)
+			return nil
+		}
+		if reg == nil {
+			return nil
+		}
+		result := reg.FindAllString(dataRule.Data, -1)
+		var logItem = new(DeployLogRecordItem)
+		//如果没匹配到错误，直接返回
+		if len(result) == 0 {
+			continue
+		}
+
+		for _, colorStr := range colorString {
+			for idx, resultItem := range result {
+				result[idx] = strings.ReplaceAll(resultItem, colorStr, "\\u001b[44;1m"+colorStr+"\\u001b[0m")
+			}
+		}
+		//把所有匹配到的日志进行拼接
+		var matchLogs string
+		for _, resultItem := range result {
+			matchLogs += resultItem + "\n"
+		}
+		//形成一个答案
+		ans := &QueryLogResp{
+			Id:        i,
+			MatchRule: rule.Question,
+			Question:  matchLogs,
+			Answer:    rule.Answer,
+			Principal: rule.Principal,
+		}
+		if rule.Principal == dataRule.Other {
+			resp.Flag = true
+		}
+		i++
+		logItem.Ans = append(logItem.Ans, *ans)
+		deployLogRecordList.Logs = append(deployLogRecordList.Logs, *logItem)
+
+		anysisRes += rule.Answer + "\n"
+	}
+	resp.DeployLogRecordList = *deployLogRecordList
+	resp.AnysisRes = anysisRes
+	data = resp
+	return data
 }
 
 func Cors() gin.HandlerFunc {
