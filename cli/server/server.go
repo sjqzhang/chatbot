@@ -468,8 +468,8 @@ func bindRounter(router *gin.Engine) {
 
 }
 
-var boundary = "\n\u001b[44;1m#--------------------------------#\u001b[0m\n"
-var colorPre = "\u001b[41;1;1m"
+//var boundary = "\n\u001b[38;5;21m#--------------------------------#\u001b[0m\n"
+var colorPre = "\u001B[38;5;15m\u001B[48;5;88m"
 var colorBehind = "\u001b[0m"
 
 func highlightKeyWord(dataRule ruleDataReq) interface{} {
@@ -479,15 +479,15 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 	resp := &RuleResp{}
 	var anysisRes string
 	var deployLogRecordList = new(DeployLogRecordList)
-	linePre := 5
-	if dataRule.LinePre != 0 {
+	linePre := 7
+	if dataRule.LinePre > 0 {
 		linePre = dataRule.LinePre
 	}
 	lineBehind := 5
-	if dataRule.LineBehind != 0 {
+	if dataRule.LineBehind > 0 {
 		lineBehind = dataRule.LineBehind
 	}
-	regPre := fmt.Sprintf("(\\n.*){0,%d}", linePre)
+	regPre := fmt.Sprintf("(\\n.*){%d}", linePre)
 	regBehind := fmt.Sprintf("(.*\\n){0,%d}", lineBehind)
 	//println(dataRule.Data) // todo remove
 	for _, rule := range corpuses {
@@ -520,10 +520,10 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 			}
 		}
 		var matchLogs string
-		//matchLogs = result[len(result)-1] //只取最后一次匹配到的数据
-		for _, resultItem := range result { //取所有数据，通过分界线分隔
-			matchLogs += resultItem + boundary
-		}
+		matchLogs = result[len(result)-1] //只取最后一次匹配到的数据
+		//for _, resultItem := range result { //取所有数据，通过分界线分隔
+		//	matchLogs += resultItem + boundary
+		//}
 		//println(matchLogs) // todo remove
 		//形成一个答案
 		ans := &QueryLogResp{
