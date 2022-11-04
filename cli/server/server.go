@@ -493,14 +493,15 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 	for _, rule := range corpuses {
 		colorReg, err := regexp.Compile(rule.Question)
 		if err != nil {
-			log.Error(err)
-			return nil
+			log.Errorf("regexp compile error:%v, exp:%s", err, rule.Question)
+			continue
 		}
 		colorString := colorReg.FindAllString(dataRule.Data, -1)
-		reg, err := regexp.Compile("(?i)" + regPre + rule.Question + regBehind)
+		regExp := "(?i)" + regPre + rule.Question + regBehind
+		reg, err := regexp.Compile(regExp)
 		if err != nil {
-			log.Error(err)
-			return nil
+			log.Errorf("regexp compile error:%v, exp:%s", err, regExp)
+			continue
 		}
 		colorMap := map[string]bool{}
 		for _, color := range colorString {
@@ -518,10 +519,9 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 				result[idx] = strings.ReplaceAll(resultItem, colorStr, colorPre+colorStr+colorBehind)
 			}
 		}
-		//把所有匹配到的日志进行拼接
 		var matchLogs string
 		//matchLogs = result[len(result)-1] //只取最后一次匹配到的数据
-		for _, resultItem := range result {
+		for _, resultItem := range result { //取所有数据，通过分界线分隔
 			matchLogs += resultItem + boundary
 		}
 		//println(matchLogs) // todo remove
