@@ -55,6 +55,8 @@ type ruleDataReq struct {
 	Data        string `json:"data"`
 	Other       string `json:"other"`
 	NoHighlight bool   `json:"highlight"`
+	LinePre     int    `json:"line_pre"`
+	LineBehind  int    `json:"line_behind"`
 }
 
 type RequirementListReq struct {
@@ -466,6 +468,10 @@ func bindRounter(router *gin.Engine) {
 
 }
 
+var boundary = "\n\u001b[44;1m#--------------------------------#\u001b[0m\n"
+var colorPre = "\u001b[41;1;1m"
+var colorBehind = "\u001b[0m"
+
 func highlightKeyWord(dataRule ruleDataReq) interface{} {
 	var data interface{}
 	corpuses := factory.GetCorpusList(bot.CORPUS_RULES)
@@ -473,23 +479,32 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 	resp := &RuleResp{}
 	var anysisRes string
 	var deployLogRecordList = new(DeployLogRecordList)
+	linePre := 5
+	if dataRule.LinePre != 0 {
+		linePre = dataRule.LinePre
+	}
+	lineBehind := 5
+	if dataRule.LineBehind != 0 {
+		lineBehind = dataRule.LineBehind
+	}
+	regPre := fmt.Sprintf("(\\n.*){0,%d}", linePre)
+	regBehind := fmt.Sprintf("(.*\\n){0,%d}", lineBehind)
+	//println(dataRule.Data) // todo remove
 	for _, rule := range corpuses {
-		preReg, err := regexp.Compile("\\?:[a-zA-Z0-9_/\\\\ \\-]+") //reg:?<color>[a-zA-Z0-9_/\\- ]
+		colorReg, err := regexp.Compile(rule.Question)
 		if err != nil {
 			log.Error(err)
 			return nil
 		}
-		colorString := preReg.FindAllString(rule.Question, -1)
-		for idx, colorStr := range colorString {
-			colorString[idx] = strings.ReplaceAll(colorStr, "?:", "") //\u001b[44;1m
-		}
-		reg, err := regexp.Compile("(?i)" + rule.Question)
+		colorString := colorReg.FindAllString(dataRule.Data, -1)
+		reg, err := regexp.Compile("(?i)" + regPre + rule.Question + regBehind)
 		if err != nil {
 			log.Error(err)
 			return nil
 		}
-		if reg == nil {
-			return nil
+		colorMap := map[string]bool{}
+		for _, color := range colorString {
+			colorMap[color] = true
 		}
 		result := reg.FindAllString(dataRule.Data, -1)
 		var logItem = new(DeployLogRecordItem)
@@ -498,16 +513,18 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 			continue
 		}
 
-		for _, colorStr := range colorString {
+		for colorStr := range colorMap {
 			for idx, resultItem := range result {
-				result[idx] = strings.ReplaceAll(resultItem, colorStr, "\\u001b[44;1m"+colorStr+"\\u001b[0m")
+				result[idx] = strings.ReplaceAll(resultItem, colorStr, colorPre+colorStr+colorBehind)
 			}
 		}
 		//把所有匹配到的日志进行拼接
 		var matchLogs string
+		//matchLogs = result[len(result)-1] //只取最后一次匹配到的数据
 		for _, resultItem := range result {
-			matchLogs += resultItem + "\n"
+			matchLogs += resultItem + boundary
 		}
+		//println(matchLogs) // todo remove
 		//形成一个答案
 		ans := &QueryLogResp{
 			Id:        i,
