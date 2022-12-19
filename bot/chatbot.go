@@ -266,7 +266,7 @@ func (f *ChatBotFactory) GetRequirementList(project string, user string, qtype i
 
 func (f *ChatBotFactory) GetCorpusList(qusType CORPUS_TYPE) []Corpus {
 	var corpuses []Corpus
-	err := engine.Where("qtype = ?", int(qusType)).Find(&corpuses)
+	err := engine.Where("qtype = ? and deleted_at is null", int(qusType)).Find(&corpuses)
 	if err != nil {
 		log.Error(err)
 	}
@@ -331,26 +331,26 @@ func (chatbot *ChatBot) syncCorpus() {
 }
 
 type Corpus struct {
-	Id              int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
-	Class           string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
-	Project         string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
-	Question        string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
-	Answer          string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
-	Sample          string    `json:"sample" form:"sample" xorm:"text notnull  'sample' comment('样本')"`
-	Creator         string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
-	Principal       string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
-	Reviser         string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
-	AcceptCount     int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
-	RejectCount     int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
-	CreatedAt       time.Time `json:"created_at" xorm:"created_at created" description:"创建时间"`
-	UpdatedAt       time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
-	DeletedAt       time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
-	Qtype           int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
-	RequirementClass string `json:"requirement_class" xorm:"varchar(256) notnull requirement_class"`
-	RequirementType string    `json:"requirement_type" xorm:"requirement_type"`
-	QuesState       int       `json:"ques_state" xorm:"ques_state"`
-	Resp            string    `json:"resp" xorm:"resp"`
-	SubProject      string    `json:"sub_project" xorm:"sub_project"`
+	Id               int       `json:"id" form:"id" xorm:"int pk autoincr notnull 'id' comment('编号')"`
+	Class            string    `json:"class" form:"class"  xorm:"varchar(255) notnull 'class' comment('分类')"`
+	Project          string    `json:"project" form:"project" xorm:"varchar(255) notnull 'project' comment('项目')"`
+	Question         string    `json:"question" form:"question"  xorm:"varchar(2048) notnull  'question' comment('问题')"`
+	Answer           string    `json:"answer" form:"answer" xorm:"text notnull  'answer' comment('回答')"`
+	Sample           string    `json:"sample" form:"sample" xorm:"text notnull  'sample' comment('样本')"`
+	Creator          string    `json:"creator" form:"creator" xorm:"varchar(256) notnull  'creator' comment('创建人')"`
+	Principal        string    `json:"principal" form:"principal" xorm:"varchar(256) notnull  'principal' comment('责负人')"`
+	Reviser          string    `json:"reviser" form:"reviser" xorm:"varchar(256) notnull  'reviser' comment('修订人')"`
+	AcceptCount      int       `json:"accept_count" form:"accept_count" xorm:"int notnull default 0  'accept_count' comment('解决次数')"`
+	RejectCount      int       `json:"reject_count" form:"reject_count" xorm:"int notnull  default 0 'reject_count' comment('解决次数')"`
+	CreatedAt        time.Time `json:"created_at" xorm:"created_at created" description:"创建时间"`
+	UpdatedAt        time.Time `json:"updated_at" xorm:"updated_at updated" description:"更新时间"`
+	DeletedAt        time.Time `xorm:"deleted_at" json:"deleted_at" description:"删除时间"`
+	Qtype            int       `json:"qtype" form:"qtype" xorm:"int notnull 'qtype' comment('类型，需求，问答, 规则')"`
+	RequirementClass string    `json:"requirement_class" xorm:"varchar(256) notnull requirement_class"`
+	RequirementType  string    `json:"requirement_type" xorm:"requirement_type"`
+	QuesState        int       `json:"ques_state" xorm:"ques_state"`
+	Resp             string    `json:"resp" xorm:"resp"`
+	SubProject       string    `json:"sub_project" xorm:"sub_project"`
 }
 
 type Feedback struct {
