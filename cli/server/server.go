@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kevwan/chatbot/logger"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -493,14 +494,14 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 	for _, rule := range corpuses {
 		colorReg, err := regexp.Compile(rule.Question)
 		if err != nil {
-			log.Errorf("regexp compile error:%v, exp:%s", err, rule.Question)
+			logger.Errorf("regexp compile error:%v, exp:%s", err, rule.Question)
 			continue
 		}
 		colorString := colorReg.FindAllString(dataRule.Data, -1)
 		regExp := "(?i)" + regPre + rule.Question + regBehind
 		reg, err := regexp.Compile(regExp)
 		if err != nil {
-			log.Errorf("regexp compile error:%v, exp:%s", err, regExp)
+			logger.Errorf("regexp compile error:%v, exp:%s", err, regExp)
 			continue
 		}
 		colorMap := map[string]bool{}
@@ -541,6 +542,7 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 		deployLogRecordList.Logs = append(deployLogRecordList.Logs, *logItem)
 
 		anysisRes += rule.Answer + "\n"
+		logger.Infof("match rule %s", rule)
 	}
 	resp.DeployLogRecordList = *deployLogRecordList
 	resp.AnysisRes = anysisRes
@@ -566,6 +568,7 @@ func main() {
 		Driver:     *driver,
 		DataSource: *datasource,
 	})
+	logger.InitLogger()
 	factory.Init()
 	router := gin.Default()
 	router.Use(Cors())
