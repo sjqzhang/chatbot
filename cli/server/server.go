@@ -32,6 +32,7 @@ var (
 	corpora       = flag.String("i", "", "the corpora files, comma to separate multiple files")
 	storeFile     = flag.String("o", "/Users/dev/repo/chatbot/corpus.gob", "the file to store corpora")
 	printMemStats = flag.Bool("m", false, "enable printing memory stats")
+	logPath       = flag.String("l", "./log", "log path")
 )
 
 type JsonResult struct {
