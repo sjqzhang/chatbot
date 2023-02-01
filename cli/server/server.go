@@ -521,8 +521,8 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 				result[idx] = strings.ReplaceAll(resultItem, colorStr, colorPre+colorStr+colorBehind)
 			}
 		}
-		var matchLogs string
-		matchLogs = result[len(result)-1] //只取最后一次匹配到的数据
+
+		matchLogs := result[len(result)-1] //只取最后一次匹配到的数据
 		//for _, resultItem := range result { //取所有数据，通过分界线分隔
 		//	matchLogs += resultItem + boundary
 		//}
@@ -543,7 +543,10 @@ func highlightKeyWord(dataRule ruleDataReq) interface{} {
 		deployLogRecordList.Logs = append(deployLogRecordList.Logs, *logItem)
 
 		anysisRes += rule.Answer + "\n"
-		logger.Infof("match rule %s", rule)
+		logger.Infof("match rule %s", rule.Question)
+	}
+	if len(anysisRes) == 0 {
+		logger.Info("no rule match")
 	}
 	resp.DeployLogRecordList = *deployLogRecordList
 	resp.AnysisRes = anysisRes
@@ -578,5 +581,9 @@ func main() {
 	//router.StaticFS("/static", http.FileSystem(box))
 	router.StaticFS("/static", http.Dir("./static"))
 	bindRounter(router)
-	router.Run(*bind)
+	err := router.Run(*bind)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 }

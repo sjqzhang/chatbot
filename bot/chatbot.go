@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kevwan/chatbot/logger"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -73,6 +74,7 @@ func (f *ChatBotFactory) Init() {
 	if engine == nil {
 		engine, err = xorm.NewEngine(f.config.Driver, f.config.DataSource)
 		if err != nil {
+			logger.Error(err)
 			panic(err)
 		}
 		err = engine.Sync2(&Corpus{}, &Project{}, &Feedback{})
@@ -87,6 +89,9 @@ func (f *ChatBotFactory) Init() {
 	//}
 	projects := make([]Project, 0)
 	err = engine.Find(&projects)
+	if err != nil {
+		logger.Error(err)
+	}
 	for _, project := range projects {
 		var conf Config
 		json.Unmarshal([]byte(project.Config), &conf)
